@@ -1,7 +1,10 @@
 import json
+import pathlib
 import numpy as np
 
-FEATURE_NAMES = json.load(open("feature_names.json"))
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+with open(_REPO_ROOT / "feature_names.json") as _f:
+    FEATURE_NAMES = json.load(_f)
 
 def load_split(path):
     texts, labels, template_ids = [], [], []
