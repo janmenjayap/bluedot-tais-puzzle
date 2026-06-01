@@ -2,7 +2,7 @@
 set -euo pipefail
 ENV_NAME="bluedot-impact-puzzle-1"
 # Create env if it doesn't exist
-if ! conda env list | grep -q "$ENV_NAME"; then
+if ! conda env list | grep -qE "(^|[[:space:]])${ENV_NAME}([[:space:]]|$)"; then
   conda create -y -n "$ENV_NAME" python=3.14.5
 fi
 # Install dependencies into the env
