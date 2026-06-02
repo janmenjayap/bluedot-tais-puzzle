@@ -11,7 +11,7 @@ def _metrics(clf, Xte, yte, scores=None):
     try:
         s = scores if scores is not None else clf.predict_proba(Xte)[:, 1]
         out["auc"] = float(roc_auc_score(yte, s))
-    except Exception:
+    except ValueError:
         out["auc"] = float("nan")
     return out
 
@@ -23,6 +23,6 @@ def fit_eval_linear(Xtr, ytr, Xte, yte, C=1.0):
 
 def fit_eval_nonlinear(Xtr, ytr, Xte, yte, hidden=(64,), seed=0):
     sc = StandardScaler().fit(Xtr)
-    clf = MLPClassifier(hidden_layer_sizes=hidden, max_iter=500, random_state=seed)
+    clf = MLPClassifier(hidden_layer_sizes=hidden, max_iter=2000, random_state=seed)
     clf.fit(sc.transform(Xtr), ytr)
     return _metrics(clf, sc.transform(Xte), yte)
