@@ -40,7 +40,7 @@ LINEAR_MODELS = {
     "lda":    lambda: LinearDiscriminantAnalysis(),
 }
 NONLINEAR_MODELS = {
-    "mlp64":  lambda: MLPClassifier(hidden_layer_sizes=(64,), max_iter=500, random_state=0),
+    "mlp64":  lambda: MLPClassifier(hidden_layer_sizes=(64,), max_iter=2000, random_state=0),
     "mlp2":   lambda: MLPClassifier(hidden_layer_sizes=(2,),  max_iter=1000, random_state=0),
     "rbfsvm": lambda: SVC(kernel="rbf", C=10, gamma="scale"),
     "knn":    lambda: KNeighborsClassifier(n_neighbors=15),
