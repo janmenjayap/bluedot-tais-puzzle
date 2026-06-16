@@ -603,6 +603,23 @@ one subplot per feature; person shows curved crescent structure consistent with 
 | Bottleneck d=4 (unit-norm) | 0.49 (person) | Emergent — nonlinear by capacity | person: linear=0.49, nonlinear=0.91 (+0.42 gap) |
 | Bottleneck d=2 (unit-norm) | **0.48 (question)** | **Emergent — angular superposition** | body_part k=1; country/food/sentiment k=2 |
 
+**Honest limitation — I did not beat the baseline at its own game.** The
+original country code already sits at a linear probe of 0.471 — at chance.
+No experiment here produced a *country* encoding that is simultaneously
+weirder and at least as probe-resistant: the superposition and bottleneck
+models make country *more* linearly decodable (0.978 and 0.677), not less,
+and the only genuinely probe-resistant result (MNIST, 0.51) was obtained by
+abandoning the country feature and the text model entirely for a 10-class
+digit task. So the strongest "weirdness" wins come from broadening the
+question — to a different feature (`person`, emergent +0.42 gap) or a
+different dataset — rather than from out-encoding the original country
+circuit. That is itself the finding: a *binary* feature that is already
+encoded at chance is close to a local optimum for probe resistance, and
+beating it requires multi-class structure (interleaving that no single
+hyperplane can cut) rather than a cleverer two-cluster geometry. Pushing a
+binary-country encoding past 0.471 while keeping it linearly weird remains
+open.
+
 ---
 
 ## Feedback

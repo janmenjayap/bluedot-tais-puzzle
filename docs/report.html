@@ -1214,6 +1214,20 @@
       structure. The SAE analysis confirms country is distributed across many sparse features — no single
       dictionary atom decodes it alone.
     </div>
+
+    <div class="insight" style="border-left-color:var(--amber)">
+      <strong>Honest limitation — the baseline was not beaten at its own game.</strong> The original
+      country code already sits at a linear probe of 0.471 (chance). No experiment here produced a
+      <em>country</em> encoding that is simultaneously weirder and at least as probe-resistant: the
+      superposition and bottleneck models make country <em>more</em> linearly decodable (0.978 and 0.677),
+      and the only genuinely probe-resistant result (MNIST, 0.51) was obtained by abandoning the country
+      feature and the text model for a 10-class digit task. The strongest "weirdness" wins therefore come
+      from broadening the question — a different feature (<code>person</code>, +0.42 emergent gap) or a
+      different dataset — not from out-encoding the original circuit. That is itself the finding: a
+      <em>binary</em> feature already encoded at chance is near a local optimum for probe resistance, and
+      beating it needs multi-class interleaving no single hyperplane can cut, not a cleverer two-cluster
+      geometry. Pushing a binary-country encoding past 0.471 while keeping it linearly weird remains open.
+    </div>
   </section>
 </div>
 
