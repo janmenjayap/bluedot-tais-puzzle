@@ -132,5 +132,5 @@ If this is meant to be a reproducible submission, `docs/writeup.md`, `docs/criti
 | 5 | Task 3 | Reframe XOR as a failure with an interesting finding. Reframe, do not remove. | ✅ Done |
 | 6 | Task 3 | Deepen "structure emerged" for at least rotation and superposition. | ✅ Done (also MNIST, bottleneck) |
 | 7 | Task 3 | Connect the experiments into one coherent argument, not a list. | ◑ Partial — intro/summary now foreground the strongest results (MNIST, bottleneck); nine experiments still run long. |
-| 8 | Repo | Pin numpy<2 (or upgrade torch) to fix the broken test. | ☐ Open |
-| 9 | Repo | Commit docs/ and untracked `artifacts/results/*` (h3 circuit, MNIST, SAE, bottleneck, bilinear). | ☐ Open |
+| 8 | Repo | Pin numpy<2 (or upgrade torch) to fix the broken test. | ✅ Done — `numpy>=1.26,<2.0` pinned; numpy 1.26.4 / torch 2.2.2 installed; full suite passes (19/19). |
+| 9 | Repo | Commit docs/ and untracked `artifacts/results/*` (h3 circuit, MNIST, SAE, bottleneck, bilinear). | ✅ Done — committed; `.superpowers/` runtime state gitignored. |
