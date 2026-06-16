@@ -1,0 +1,2 @@
+pos_neuron,pos_loading,neg_neuron,neg_loading,ratio_abs,acc_2neuron,acc_h3_linear,acc_emb_country,acc_emb_food
+61,2.602862008549593,0,-2.5223847575957237,1.0319052240985545,0.8953333333333333,0.9606666666666667,0.98,0.9666666666666667

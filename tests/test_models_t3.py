@@ -1,7 +1,7 @@
 # tests/test_models_t3.py
 import torch
 import pytest
-from src.puzzle.models_t3 import HeadXOR, HeadRotation, HeadHelix, HeadSuper, Predictor
+from src.puzzle.models_t3 import HeadXOR, HeadRotation, HeadHelix, HeadSuper, Predictor, HeadBottleneck
 from src.puzzle.geometry import circular_loss, helical_loss, superposition_loss
 
 N, D = 8, 384
@@ -63,3 +63,21 @@ def test_superposition_loss_scalar():
     loss = superposition_loss(proj, c, f)
     assert loss.shape == ()
     assert loss.item() >= 0
+
+
+def test_head_bottleneck_d4_shape():
+    out = HeadBottleneck(d=4)(_emb())
+    assert out.shape == (N, 8)
+
+
+def test_head_bottleneck_d2_shape():
+    out = HeadBottleneck(d=2)(_emb())
+    assert out.shape == (N, 8)
+
+
+def test_head_bottleneck_unit_norm():
+    model = HeadBottleneck(d=4)
+    bottle = model.bottle(_emb())
+    assert bottle.shape == (N, 4)
+    norms = bottle.norm(dim=1)
+    assert torch.allclose(norms, torch.ones(N), atol=1e-5)

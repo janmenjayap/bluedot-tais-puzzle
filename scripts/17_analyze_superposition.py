@@ -39,6 +39,21 @@ for feat_idx in [COUNTRY, FOOD]:
 
 pd.DataFrame(rows).to_csv("artifacts/results/17_super_probes.csv", index=False)
 
+# Per-group geometry on raw (unstandardized) bottleneck
+angles_te = np.arctan2(bottle_te[:, 1], bottle_te[:, 0])
+radii_te  = np.linalg.norm(bottle_te, axis=1)
+geo_rows = []
+for cv in [0, 1]:
+    for fv in [0, 1]:
+        m = (lab_te[:, COUNTRY] == cv) & (lab_te[:, FOOD] == fv)
+        ang_mean = float(np.degrees(np.arctan2(np.sin(angles_te[m]).mean(), np.cos(angles_te[m]).mean())))
+        ang_std  = float(np.degrees(np.std(angles_te[m])))
+        rad_mean = float(radii_te[m].mean())
+        print(f"(c={cv},f={fv}): mean_angle={ang_mean:.1f}°  std={ang_std:.1f}°  radius={rad_mean:.2f}")
+        geo_rows.append({"country": cv, "food": fv, "mean_angle_deg": ang_mean,
+                         "std_angle_deg": ang_std, "mean_radius": rad_mean})
+pd.DataFrame(geo_rows).to_csv("artifacts/results/17_super_geometry_stats.csv", index=False)
+
 fig, ax = plt.subplots(figsize=(5, 5))
 markers = {(0,0): ("o", "c=0,f=0"), (1,0): ("^", "c=1,f=0"),
            (0,1): ("s", "c=0,f=1"), (1,1): ("D", "c=1,f=1")}

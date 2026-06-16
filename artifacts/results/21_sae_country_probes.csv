@@ -1,0 +1,7 @@
+scope,linear_acc
+feat_100_alone,0.5186666666666667
+feat_36_alone,0.592
+top2_pair_linear,0.7066666666666667
+top2_pair_nonlinear,0.7173333333333334
+all256_linear,0.8266666666666667
+all256_nonlinear,0.958

@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlueDot TAIS — Puzzle 1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+          integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+          crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --accent: #818cf8;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --tiny: #64748b;
+      --radius: 12px;
+    }
+
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+
+    /* ─── NAV ─────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      height: 56px;
+    }
+    .nav-brand {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      margin-right: auto;
+      white-space: nowrap;
+    }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+      white-space: nowrap;
+    }
+    nav a:hover { color: var(--text); background: rgba(129,140,248,0.12); }
+    nav a.active { color: var(--accent); }
+
+    /* ─── LAYOUT ───────────────────────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    section { padding: 5rem 0 3rem; }
+
+    /* ─── HERO ─────────────────────────────────────────────────────────── */
+    #home {
+      padding: 6rem 0 4rem;
+      text-align: center;
+      opacity: 0;
+      animation: fadeInUp 0.9s ease forwards;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(129,140,248,0.12);
+      border: 1px solid rgba(129,140,248,0.25);
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+    }
+    .hero-title span { color: var(--accent); }
+    .hero-subtitle {
+      font-size: clamp(0.95rem, 2vw, 1.15rem);
+      color: var(--muted);
+      font-weight: 400;
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+    .stat-pills {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 2.5rem;
+    }
+    .stat-pill {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.45rem 1.1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+    }
+    .stat-pill.green { border-color: rgba(52,211,153,0.35); color: var(--green); }
+    .stat-pill.indigo { border-color: rgba(129,140,248,0.35); color: var(--accent); }
+    .stat-pill.amber { border-color: rgba(251,191,36,0.35); color: var(--amber); }
+    .hero-intro {
+      max-width: 720px;
+      margin: 0 auto;
+      font-size: 0.97rem;
+      color: var(--muted);
+      line-height: 1.75;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 2rem;
+      text-align: left;
+    }
+
+    /* ─── SECTION HEADERS ──────────────────────────────────────────────── */
+    .section-header { margin-bottom: 2.5rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.28rem 0.8rem;
+      border-radius: 999px;
+      margin-bottom: 0.75rem;
+    }
+    .badge.task1 { background: rgba(129,140,248,0.18); color: var(--accent); border: 1px solid rgba(129,140,248,0.3); }
+    .badge.task2 { background: rgba(52,211,153,0.15); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .badge.task3 { background: rgba(251,191,36,0.15); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+    .badge.summary { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+    .badge.setup { background: rgba(148,163,184,0.15); color: var(--muted); border: 1px solid rgba(148,163,184,0.3); }
+
+    .section-title {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .section-desc { color: var(--muted); font-size: 0.97rem; max-width: 680px; }
+
+    /* ─── CARDS ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 1rem;
+    }
+    .chart-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      position: relative;
+    }
+    .chart-wrap { height: 260px; }
+    .chart-wrap canvas { display: block; }
+
+    /* ─── INSIGHT BOX ──────────────────────────────────────────────────── */
+    .insight {
+      border-left: 3px solid var(--amber);
+      background: rgba(251,191,36,0.07);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 1.1rem 1.4rem;
+      font-size: 0.93rem;
+      color: var(--text);
+      line-height: 1.7;
+      margin-top: 1.5rem;
+    }
+    .insight strong { color: var(--amber); }
+
+    /* ─── FINDING CALLOUT ──────────────────────────────────────────────── */
+    .finding {
+      border-left: 3px solid var(--accent);
+      background: rgba(129,140,248,0.07);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 1rem 1.3rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-top: 1rem;
+    }
+    .finding strong { color: var(--accent); }
+
+    /* ─── SETUP SECTION ────────────────────────────────────────────────── */
+    .setup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 700px) { .setup-grid { grid-template-columns: 1fr; } }
+
+    .arch-diagram {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      padding: 1.5rem 1rem;
+    }
+    .arch-node {
+      background: rgba(129,140,248,0.12);
+      border: 1px solid rgba(129,140,248,0.35);
+      border-radius: 8px;
+      padding: 0.55rem 1.4rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+      text-align: center;
+      min-width: 160px;
+    }
+    .arch-node.output {
+      background: rgba(52,211,153,0.1);
+      border-color: rgba(52,211,153,0.35);
+      color: var(--green);
+    }
+    .arch-node.input {
+      background: rgba(251,191,36,0.1);
+      border-color: rgba(251,191,36,0.35);
+      color: var(--amber);
+    }
+    .arch-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      color: var(--tiny);
+    }
+    .arch-arrow-line {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+    }
+    .arch-arrow-tip {
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 7px solid var(--border);
+    }
+    .arch-label {
+      font-size: 0.68rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--tiny);
+      margin-top: 2px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.6rem;
+      padding: 1rem;
+    }
+    .feature-chip {
+      background: rgba(148,163,184,0.08);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .feature-chip.star {
+      background: rgba(251,191,36,0.1);
+      border-color: rgba(251,191,36,0.35);
+      color: var(--amber);
+    }
+    .feature-chip .idx {
+      font-size: 0.65rem;
+      color: var(--tiny);
+      min-width: 14px;
+    }
+    .arch-note {
+      font-size: 0.78rem;
+      color: var(--tiny);
+      text-align: center;
+      margin-top: 1rem;
+      font-style: italic;
+    }
+
+    /* ─── CHARTS GRID ──────────────────────────────────────────────────── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 800px) { .charts-row { grid-template-columns: 1fr; } }
+
+    /* ─── TABS ─────────────────────────────────────────────────────────── */
+    .tabs-wrap { margin-top: 2rem; }
+    .tab-list {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+    }
+    .tab-btn {
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.4rem 0.9rem;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--text); border-color: var(--border); background: rgba(255,255,255,0.04); }
+    .tab-btn.active {
+      color: var(--accent);
+      background: rgba(129,140,248,0.12);
+      border-color: rgba(129,140,248,0.3);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .tab-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+    }
+    .tab-card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+    .tab-card-theory {
+      font-size: 0.78rem;
+      color: var(--tiny);
+      margin-bottom: 1.1rem;
+      font-style: italic;
+    }
+    .tab-card-desc {
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 1.25rem;
+    }
+    .tab-chart-wrap { height: 200px; }
+    .tab-chart-wrap {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.25rem 1rem;
+      margin-bottom: 1rem;
+      max-height: 260px;
+    }
+    .tab-chart-wrap canvas { max-height: 220px; }
+
+    /* ─── RESULT TABLE ─────────────────────────────────────────────────── */
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+      margin-bottom: 1rem;
+    }
+    .result-table th {
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 0.5rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .result-table td {
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid rgba(51,65,85,0.5);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+    }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table .highlight td { color: var(--green); }
+
+    /* ─── SUMMARY TABLE ────────────────────────────────────────────────── */
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .summary-table th {
+      background: rgba(129,140,248,0.1);
+      color: var(--accent);
+      padding: 0.7rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-table td {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid rgba(51,65,85,0.5);
+      color: var(--text);
+      font-size: 0.83rem;
+    }
+    .summary-table td:first-child { font-weight: 500; }
+    .summary-table td.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+    .summary-table tr:last-child td { border-bottom: none; }
+    .summary-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .summary-table .baseline td { color: var(--muted); }
+
+    /* ─── FOOTER ───────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 0;
+      text-align: center;
+      color: var(--tiny);
+      font-size: 0.78rem;
+      margin-top: 4rem;
+    }
+
+    /* ─── PROSE ────────────────────────────────────────────────────────── */
+    .prose {
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.75;
+      max-width: 720px;
+    }
+    .prose strong { color: var(--text); }
+
+    /* ─── DIVIDER ──────────────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 2rem 0; }
+
+    /* ─── MONO NUMBER ──────────────────────────────────────────────────── */
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ─── SCROLLBAR ────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ─── NAV ─────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <span class="nav-brand">BlueDot TAIS · Puzzle 1</span>
+    <a href="#home">Home</a>
+    <a href="#setup">Setup</a>
+    <a href="#task1">Task 1</a>
+    <a href="#task2">Task 2</a>
+    <a href="#task3">Task 3</a>
+    <a href="#summary">Summary</a>
+  </div>
+</nav>
+
+<!-- ─── HERO ─────────────────────────────────────────────────────────────── -->
+<div class="container">
+  <section id="home">
+    <span class="hero-eyebrow">Mechanistic Interpretability</span>
+    <h1 class="hero-title">BlueDot TAIS — <span>Puzzle 1</span></h1>
+    <p class="hero-subtitle">Mechanistic Interpretability: Finding and Building Unusual Representations</p>
+    <div class="stat-pills">
+      <span class="stat-pill indigo">8 binary features</span>
+      <span class="stat-pill green">5-layer MLP</span>
+      <span class="stat-pill amber">9 new encodings</span>
+    </div>
+    <div class="hero-intro">
+      A frozen sentence-transformer encoder (all-MiniLM-L6-v2, 384-dimensional) feeds a 5-layer MLP
+      trained to predict 8 binary features from natural language sentences. The MLP has architecture
+      384→64→64→64→64→8. One feature — <strong style="color:var(--amber)">country</strong> — is encoded
+      in an unusual, nonlinear way at the hidden layer h2. We identify it by comparing linear and
+      nonlinear probe accuracies across all layers, characterise the exact encoding mechanism
+      (an absolute-value code with Z/2 symmetry along the food axis), and then deliberately train
+      nine models with geometrically richer representations spanning XOR parity, SO(2) rotational
+      codes, JEPA residuals, helical geometry, superposition, a multi-class circular code, SAE
+      decomposition, a bilinear model, and an emergent unit-norm bottleneck.
+    </div>
+  </section>
+
+  <!-- ─── SETUP ──────────────────────────────────────────────────────────── -->
+  <section id="setup">
+    <div class="section-header">
+      <span class="badge setup">Setup</span>
+      <h2 class="section-title">The Model &amp; Task</h2>
+      <p class="section-desc">Architecture overview and the 8 binary features the MLP is trained to predict from frozen sentence embeddings.</p>
+    </div>
+
+    <div class="setup-grid">
+      <!-- Architecture diagram -->
+      <div class="card">
+        <div class="card-title">Model Architecture</div>
+        <div class="arch-diagram">
+          <div class="arch-node input">Embedding&nbsp;&nbsp;384</div>
+          <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-tip"></div></div>
+          <div class="arch-node">H0 &nbsp;&nbsp; 64</div>
+          <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-tip"></div></div>
+          <div class="arch-node">H1 &nbsp;&nbsp; 64</div>
+          <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-tip"></div></div>
+          <div class="arch-node" style="background:rgba(251,191,36,0.1);border-color:rgba(251,191,36,0.35);color:var(--amber)">H2 &nbsp;&nbsp; 64 ★</div>
+          <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-tip"></div></div>
+          <div class="arch-node">H3 &nbsp;&nbsp; 64</div>
+          <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-tip"></div></div>
+          <div class="arch-node output">Output &nbsp;&nbsp; 8</div>
+        </div>
+        <p class="arch-note">★ Unusual encoding introduced at H2</p>
+        <p class="arch-note" style="margin-top:0.4rem">All embeddings pre-computed and frozen. Only the MLP is trained.</p>
+      </div>
+
+      <!-- Feature chips -->
+      <div class="card">
+        <div class="card-title">8 Binary Features</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="idx">0</span> number</div>
+          <div class="feature-chip"><span class="idx">1</span> question</div>
+          <div class="feature-chip"><span class="idx">2</span> color</div>
+          <div class="feature-chip"><span class="idx">3</span> food</div>
+          <div class="feature-chip"><span class="idx">4</span> sentiment</div>
+          <div class="feature-chip star"><span class="idx">5</span> country ★</div>
+          <div class="feature-chip"><span class="idx">6</span> person</div>
+          <div class="feature-chip"><span class="idx">7</span> body_part</div>
+        </div>
+        <p class="arch-note" style="text-align:left;padding-left:1rem;margin-top:0.5rem">★ country is encoded in an unusual nonlinear way</p>
+
+        <div class="divider"></div>
+
+        <div style="padding: 0 1rem 0.5rem">
+          <p style="font-size:0.82rem;color:var(--muted);line-height:1.6">
+            Each sentence in the dataset has exactly one binary label per feature. The model
+            must learn all 8 simultaneously from the shared 64-dimensional hidden layers.
+            Features share representational capacity — the country encoding exploits this
+            by latching onto the food axis.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── TASK 1 ─────────────────────────────────────────────────────────── -->
+  <section id="task1">
+    <div class="section-header">
+      <span class="badge task1">TASK 1</span>
+      <h2 class="section-title">Finding the Unusual Feature</h2>
+      <p class="section-desc">
+        Linear and nonlinear probes trained at every layer reveal a striking divergence for exactly one feature.
+      </p>
+    </div>
+
+    <div class="charts-row">
+      <!-- Chart A: Probe comparison -->
+      <div class="chart-wrap" style="height:320px">
+        <div class="card-title">Chart A — Probe Accuracy at H2 by Feature</div>
+        <canvas id="chartA"></canvas>
+      </div>
+
+      <!-- Chart B: Layer trace -->
+      <div class="chart-wrap" style="height:320px">
+        <div class="card-title">Chart B — Country Probe Accuracy Across Layers</div>
+        <canvas id="chartB"></canvas>
+      </div>
+    </div>
+
+    <div class="insight">
+      <strong>Finding:</strong> <em>country</em> is the only feature where linear and nonlinear probes diverge.
+      The gap of <strong>0.495</strong> at H2 is uniquely diagnostic — every other feature sits between 0.97 and 1.00.
+      The gap appears only at H2: before it the embedding still carries a linearly decodable country signal,
+      after it the model has re-encoded it into a nonlinear code. The encoding is <em>introduced by the H2 transformation</em>.
+      Leave-one-template-out cross-validation confirms this is not an artefact (linear = 0.486, nonlinear = 0.995).
+    </div>
+  </section>
+
+  <!-- ─── TASK 2 ─────────────────────────────────────────────────────────── -->
+  <section id="task2">
+    <div class="section-header">
+      <span class="badge task2">TASK 2</span>
+      <h2 class="section-title">The Encoding Mechanism</h2>
+      <p class="section-desc">
+        How exactly is <em>country</em> stored at H2? The answer involves the food axis, absolute values, and Z/2 symmetry.
+      </p>
+    </div>
+
+    <div class="prose" style="margin-bottom:1.75rem">
+      The <code>food</code> and <code>country</code> labels are <strong>statistically independent</strong> in the dataset
+      (label correlation = −0.005). Yet the model <em>representationally entangles</em> them — it co-encodes both
+      features on the same activation axis at H2.
+      Projecting H2 activations onto the direction that best separates <strong>food=0</strong> from <strong>food=1</strong>
+      reveals four distinct intervals. The key observation: <strong>country=1 clusters near zero on this axis</strong>
+      regardless of food value, while <strong>country=0 is pushed to the extremes</strong> — large negative (food=0) or
+      large positive (food=1). In other words: <em>country = 1 if and only if |projection on food axis| is small.</em>
+      This is an <strong>absolute-value (magnitude) code</strong> with Z/2 symmetry.
+    </div>
+
+    <div class="charts-row">
+      <!-- Chart C: Histogram -->
+      <div class="chart-wrap" style="height:240px">
+        <div class="card-title">Chart C — Distribution Along the Food Axis (H2)</div>
+        <canvas id="chartC"></canvas>
+      </div>
+
+      <!-- Chart D: Decoder comparison -->
+      <div class="chart-wrap" style="height:240px">
+        <div class="card-title">Chart D — Decoder Accuracy Comparison</div>
+        <canvas id="chartD"></canvas>
+      </div>
+    </div>
+
+    <div class="insight">
+      <strong>The Z/2 symmetry:</strong> Both (country=0, food=0) and (country=0, food=1) map to a
+      <strong>large |projection|</strong>, just with opposite signs. A linear probe sees the mean of
+      positive and negative extremes — which is near zero — and cannot decode the feature.
+      Replacing the raw projection with its absolute value jumps accuracy from
+      <span class="mono" style="color:var(--red)">0.502</span> (chance) to
+      <span class="mono" style="color:var(--green)">0.946</span>.
+      Any even function works: projection² achieves identical accuracy.
+    </div>
+
+    <div style="margin-top:1.75rem">
+      <div class="card-title">Minimum Complexity: How Many Hidden Units Are Needed?</div>
+      <div class="chart-wrap" style="margin-top:0.75rem;max-width:540px;height:200px">
+        <canvas id="chartE"></canvas>
+      </div>
+      <div class="finding" style="max-width:540px">
+        <strong>Effectively 1D:</strong> A 2-hidden-unit MLP achieves 0.950. 1 unit achieves only 0.721.
+        A 2-ReLU circuit suffices to decode it: |x| = ReLU(x) + ReLU(−x). A single ReLU cannot recover an
+        even function, so two units is a natural lower bound for this Z/2-symmetric code — consistent with
+        the empirical jump from 1 to 2 units.
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="prose" style="margin-bottom:1rem">
+      <strong>Why did the model choose this representation?</strong><br><br>
+      Both <code>country</code> and <code>food</code> are linearly decodable from the raw sentence-transformer
+      embeddings — country at <span class="mono" style="color:var(--green)">0.980</span> and food at
+      <span class="mono" style="color:var(--green)">0.967</span> — so the model could have kept both as
+      independent linear directions throughout. Instead, at H2 it spontaneously shares a single axis:
+      <strong>food as sign, country as magnitude</strong>. This is representational superposition —
+      two features on one axis, with country compressed into the magnitude channel.
+      One plausible pressure is capacity: the 64-dimensional bottleneck must carry 8 features simultaneously,
+      and co-encoding two features that happen to align in embedding space is a natural compression strategy,
+      even when their labels are uncorrelated.
+    </div>
+
+    <div class="insight" style="margin-bottom:1.75rem">
+      <strong>The H3 decoding circuit:</strong> After H2, the model must recover country from the magnitude code.
+      Inspecting the H2→H3 weight matrix reveals the mechanism directly: two neurons have
+      near-perfectly equal-and-opposite loadings on the food axis
+      (<span class="mono" style="color:var(--green)">+2.603</span> and
+      <span class="mono" style="color:var(--red)">−2.522</span>, ratio 1.03).
+      One neuron activates for positive food-axis projections, the other for negative projections.
+      Together they implement <code>|x| ≈ ReLU(x) + ReLU(−x)</code> — a two-ReLU circuit
+      for recovering magnitude from a signed code. These two neurons alone probe country at
+      <span class="mono" style="color:var(--green)">0.895</span> — recovering most of the country signal,
+      with full H3 reaching <span class="mono" style="color:var(--green)">0.961</span>, so the remaining
+      neurons add some meaningful cleanup. This lines up with the probe analysis: 2 hidden units suffice,
+      consistent with the two ReLUs this magnitude-decoding circuit uses.
+    </div>
+  </section>
+
+  <!-- ─── TASK 3 ─────────────────────────────────────────────────────────── -->
+  <section id="task3">
+    <div class="section-header">
+      <span class="badge task3">TASK 3</span>
+      <h2 class="section-title">Nine New Representations</h2>
+      <p class="section-desc">
+        Nine models trained with geometrically richer encodings, each connecting to a different theoretical framework.
+      </p>
+    </div>
+
+    <div class="prose" style="margin-bottom:2rem">
+      Before running experiments, "more interesting" had to be defined. Two definitions were used:
+      <strong>(1) probe-resistant</strong> — linear probe stays near chance, as in the baseline;
+      <strong>(2) geometrically richer</strong> — higher-dimensional symmetry, multiple features sharing
+      one space, angular rather than magnitude coding. A representation can be geometrically richer
+      even if it remains linearly decodable — that follows from the binary label structure, not the encoding.
+      <br><br>
+      The main lessons: <strong>probe resistance requires architectural pressure, not harder labels</strong>
+      — depth linearises internally regardless of label complexity (XOR, helix), and binary labels are
+      always linearly separable, so SO(2) and helical codes cannot resist a linear probe however clean
+      the geometry. <strong>Genuine probe resistance needs multi-class structure</strong> — the MNIST
+      10-class circular code drives the linear probe to chance (0.51) while the nonlinear probe holds at
+      0.985, a 47-point gap and the strongest result here. <strong>Geometric richness can emerge
+      unprompted</strong> — the unit-norm d-sphere bottleneck lets <code>person</code> develop a +0.42
+      linear/nonlinear gap with no target angles, which (with the superposition model's shared 2D space)
+      connects directly to how neural networks store more features than they have dimensions.
+    </div>
+
+    <div class="tabs-wrap">
+      <div class="tab-list">
+        <button class="tab-btn active" data-tab="xor">1 &mdash; XOR / Parity</button>
+        <button class="tab-btn" data-tab="rotational">2 &mdash; Rotational SO(2)</button>
+        <button class="tab-btn" data-tab="jepa">3 &mdash; JEPA Residual</button>
+        <button class="tab-btn" data-tab="helical">4 &mdash; Helical</button>
+        <button class="tab-btn" data-tab="super">5 &mdash; Superposition</button>
+        <button class="tab-btn" data-tab="mnist">6 &mdash; MNIST Circular</button>
+        <button class="tab-btn" data-tab="sae">7 &mdash; SAE Decomposition</button>
+        <button class="tab-btn" data-tab="bilinear">8 &mdash; Bilinear Model</button>
+        <button class="tab-btn" data-tab="bottleneck">9 &mdash; Bottleneck</button>
+      </div>
+
+      <!-- Tab 1: XOR -->
+      <div class="tab-panel active" id="tab-xor">
+        <div class="tab-card">
+          <div class="tab-card-title">XOR / Parity Code</div>
+          <div class="tab-card-theory">Theory: Parity-pruning in state-tracking transformers — Li et al., arXiv:2503.02854, ICML 2025</div>
+          <p class="tab-card-desc">
+            A synthetic feature <strong style="color:var(--text)">parity = sentiment XOR question</strong> is introduced.
+            A 9th output head is added and trained to predict it. The model must represent both inputs jointly —
+            no single linear direction encodes XOR. This is a controlled miniature version of the
+            compositional state-tracking mechanism described by Li et al. for real transformers doing
+            compositional state updates.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
+            <div>
+              <table class="result-table">
+                <thead><tr><th>Probe</th><th>Accuracy</th></tr></thead>
+                <tbody>
+                  <tr><td>Linear (h2)</td><td style="color:var(--green)">0.951</td></tr>
+                  <tr class="highlight"><td>2-layer MLP</td><td>0.982</td></tr>
+                </tbody>
+              </table>
+              <div class="finding" style="border-color:var(--red)">
+                <strong>This experiment failed to produce a weirder representation.</strong>
+                Linear probe = 0.951 means h2 is <em>more</em> linearly decodable than the baseline (0.471),
+                not less. The model had enough depth to linearise XOR before h2.
+                The interesting finding is what this reveals about the model — it composes parity
+                internally, exactly like the Li et al. mechanism at scale — but the representation
+                itself is not harder to probe. Forcing a weirder code requires architectural
+                constraints, not just a harder label.
+              </div>
+            </div>
+            <div class="tab-chart-wrap">
+              <canvas id="chartT1" style="max-height:200px"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Rotational -->
+      <div class="tab-panel" id="tab-rotational">
+        <div class="tab-card">
+          <div class="tab-card-title">Rotational / SO(2) Code</div>
+          <div class="tab-card-theory">Theory: LeJEPA identifiability — Klindt et al., arXiv:2605.26379 — transition operators must be linear and orthogonal</div>
+          <p class="tab-card-desc">
+            A circular regulariser pushes a learned 2D projection of H2 onto the unit circle:
+            <strong style="color:var(--text)">country=0 → 0°, country=1 → 90°</strong>.
+            This is a phase code rather than a magnitude code. The update from country=0 to country=1
+            is a 90° rotation in the learned 2D subspace. LeJEPA's identifiability theorem states
+            that a consistent world-model transition operator must be linear and orthogonal —
+            exactly a rotation matrix.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
+            <div>
+              <table class="result-table">
+                <thead><tr><th>Probe</th><th>Accuracy</th></tr></thead>
+                <tbody>
+                  <tr class="highlight"><td>Linear on full h2</td><td>0.989</td></tr>
+                  <tr class="highlight"><td>Angular decoder (2D)</td><td>0.988</td></tr>
+                </tbody>
+              </table>
+              <div class="finding">
+                <strong>The angular structure is clean</strong> — country=0 clusters at mean 1.3° (std 8.5°),
+                country=1 at mean 89.1° (std 8.7°). But points are <em>not</em> on the unit circle:
+                country=0 mean radius = 6.24, country=1 = 3.67. The model mixed phase code (angle) and
+                magnitude code (radius) simultaneously. Linear probe = 0.989 because two orthogonal clusters
+                are always linearly separable — this is a binary-label limitation, not a regulariser failure.
+                Rotational codes only resist linear probes for 3+ classes on a circle.
+              </div>
+            </div>
+            <div class="tab-chart-wrap">
+              <canvas id="chartT2" style="max-height:200px"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: JEPA -->
+      <div class="tab-panel" id="tab-jepa">
+        <div class="tab-card">
+          <div class="tab-card-title">JEPA Residual Code</div>
+          <div class="tab-card-theory">Theory: Direct implementation of the JEPA objective. P linearity = LeJEPA identifiability condition.</div>
+          <p class="tab-card-desc">
+            A predictor P takes the <strong style="color:var(--text)">7 other binary feature labels</strong>
+            (all features except country) as input and predicts the full H2 activations.
+            The residual H2 − P(other_labels) is what the other labels cannot explain — country's contribution.
+            The empirical question: is that residual direction consistent across contexts, and is P linear?
+            If P is linear, the LeJEPA identifiability condition is satisfied.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
+            <div>
+              <table class="result-table">
+                <thead><tr><th>Probe</th><th>Accuracy</th></tr></thead>
+                <tbody>
+                  <tr><td>Linear on raw h2</td><td style="color:var(--red)">0.471</td></tr>
+                  <tr><td>Linear on residual</td><td style="color:var(--amber)">0.551</td></tr>
+                  <tr class="highlight"><td>Other features (residual)</td><td>~1.000</td></tr>
+                </tbody>
+              </table>
+              <div class="finding">
+                <strong>Finding:</strong> A linear matrix W approximates P well —
+                the unexplained fraction ||P(z)−Wz||² ≈ 0. P is essentially linear,
+                empirically confirming the LeJEPA condition in a fully controlled ground-truth setting.
+              </div>
+            </div>
+            <div class="tab-chart-wrap">
+              <canvas id="chartT3" style="max-height:200px"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Helical -->
+      <div class="tab-panel" id="tab-helical">
+        <div class="tab-card">
+          <div class="tab-card-title">Helical Code</div>
+          <div class="tab-card-theory">Theory: Transformer positional encodings and grid-cell theories of spatial encoding</div>
+          <p class="tab-card-desc">
+            A regulariser pushes a learned 3D projection of H2 onto a helix:
+            <strong style="color:var(--text)">country=0 → (1, 0, 0)</strong>,
+            <strong style="color:var(--text)">country=1 → (0, 1, pitch)</strong>.
+            Motivated by how transformer positional encodings and grid cells in the mammalian
+            hippocampus encode continuous location using phase-coded representations.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
+            <div>
+              <table class="result-table">
+                <thead><tr><th>Decoder</th><th>Accuracy</th></tr></thead>
+                <tbody>
+                  <tr class="highlight"><td>1D projection</td><td>0.989</td></tr>
+                  <tr class="highlight"><td>2D angular</td><td>0.993</td></tr>
+                  <tr class="highlight"><td>3D helical fit</td><td>0.993</td></tr>
+                </tbody>
+              </table>
+              <div class="finding">
+                <strong>Finding:</strong> Helix collapses to 1D for a binary label.
+                The two classes sit at the tips of two separate 1D manifolds rather than on a spiral.
+                Helical structure requires multi-valued (ordinal or continuous) variables to be informative.
+              </div>
+            </div>
+            <div class="tab-chart-wrap">
+              <canvas id="chartT4" style="max-height:200px"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Superposition -->
+      <div class="tab-panel" id="tab-super">
+        <div class="tab-card">
+          <div class="tab-card-title">Superposition / Entanglement Code</div>
+          <div class="tab-card-theory">Theory: Anthropic's superposition hypothesis — models under capacity pressure interleave features</div>
+          <p class="tab-card-desc">
+            Country and food are forced to share a 2D bottleneck with interleaved target positions:
+            (c=0,f=0)→(1,0), (c=1,f=0)→(0,1), (c=0,f=1)→(−1,0), (c=1,f=1)→(0,−1).
+            Neither feature occupies a dedicated dimension. This is a deliberate, controlled
+            demonstration of the superposition failure mode — not mysterious, just geometry.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
+            <div>
+              <table class="result-table">
+                <thead><tr><th>Feature</th><th>Accuracy</th><th>Baseline</th></tr></thead>
+                <tbody>
+                  <tr class="highlight"><td>country</td><td>0.978</td><td style="color:var(--tiny)">0.503</td></tr>
+                  <tr><td>food</td><td style="color:var(--amber)">0.738</td><td style="color:var(--tiny)">0.501</td></tr>
+                </tbody>
+              </table>
+              <div class="finding">
+                The four groups approximately hit their target angles — (0,0) at 8.7°, (0,1) at 81.2°,
+                (1,0) at 175.1°, (1,1) at 273.4° — close to the intended 0°/90°/180°/270°.
+                But precision is uneven: (0,0) std 22°, (0,1) std 10°, (1,1) std 39.5°, and
+                (c=1,f=0) collapses into a ray with std <strong>71.9°</strong> and a larger mean
+                radius (4.04 vs 1.4–2.1 for the others). The ray causes the cross shape in the
+                scatter plot and explains why food probes at only 0.738 — the (c=1,f=0) ray
+                bleeds angularly into adjacent regions.
+                Country still probes at 0.978 because the left/right boundary remains clear.
+              </div>
+            </div>
+            <div class="tab-chart-wrap">
+              <canvas id="chartT5" style="max-height:200px"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 6: MNIST Circular -->
+      <div class="tab-panel" id="tab-mnist" style="display:none">
+        <div class="tab-card">
+          <div class="tab-card-title">MNIST Circular Code (10-class) — with unit-norm fix</div>
+          <div class="tab-card-theory">Theory: Fix to Idea 2 — rotation works when there are 3+ classes interleaved on the circle. Unit-norm constraint eliminates the radius shortcut.</div>
+          <p>A small CNN trained on MNIST with a 2D circular bottleneck. Digit k is pushed toward angle k × 36°. Even digits (0,2,4,6,8) and odd digits (1,3,5,7,9) alternate perfectly around the circle. <strong>Unit-norm constraint</strong> (F.normalize on bottleneck) forces all representations onto the unit circle, removing the radius magnitude as a linear shortcut.</p>
+          <table class="data-table" style="margin:0.75rem 0">
+            <thead><tr><th>Probe</th><th>Accuracy</th></tr></thead>
+            <tbody>
+              <tr><td>10-class digit accuracy</td><td style="color:var(--green)">0.981</td></tr>
+              <tr><td>10-class linear probe on 2D</td><td style="color:var(--green)">0.982</td></tr>
+              <tr><td>Even/odd <strong>linear</strong> probe on 2D</td><td style="color:var(--red)"><strong>0.510</strong></td></tr>
+              <tr><td>Even/odd <strong>nonlinear</strong> probe on 2D</td><td style="color:var(--green)"><strong>0.985</strong></td></tr>
+              <tr><td>Base rate</td><td style="color:var(--muted)">0.508</td></tr>
+            </tbody>
+          </table>
+          <div class="finding" style="border-color:var(--green)">
+            With unit-norm, the even/odd linear probe drops to <strong>0.510 ≈ chance</strong> (base rate 0.508),
+            while the nonlinear probe stays at 0.985 and digit accuracy improves to 0.981.
+            The 47 percentage-point gap is the largest in this study. Without unit-norm, the linear probe
+            was 0.624 because the model used radius as a shortcut — the constraint removes that pathway entirely.
+          </div>
+        </div>
+        <div class="tab-chart-wrap">
+          <canvas id="chartT6" style="max-height:200px"></canvas>
+        </div>
+      </div>
+
+      <!-- Tab 7: SAE Decomposition -->
+      <div class="tab-panel" id="tab-sae" style="display:none">
+        <div class="tab-card">
+          <div class="tab-card-title">SAE Decomposition of h2</div>
+          <div class="tab-card-theory">Theory: Sparse dictionary learning / sparse autoencoders as a basis for mechanistic analysis of distributed representations.</div>
+          <p>A top-k sparse autoencoder (k=10, d_feats=256) is trained on the 64-dimensional h2 activations of the original puzzle model. Each sparse feature is then tested as a linear country probe, individually and jointly.</p>
+          <table class="data-table" style="margin:0.75rem 0">
+            <thead><tr><th>Decoder</th><th>Accuracy</th></tr></thead>
+            <tbody>
+              <tr><td>Single best SAE feature (feat 100)</td><td style="color:var(--amber)">0.519</td></tr>
+              <tr><td>Second best SAE feature (feat 36)</td><td style="color:var(--amber)">0.592</td></tr>
+              <tr><td>Top-2 pair, linear probe</td><td style="color:var(--amber)">0.707</td></tr>
+              <tr><td>Top-2 pair, nonlinear probe</td><td style="color:var(--amber)">0.717</td></tr>
+              <tr><td>All 256 SAE features, linear</td><td style="color:var(--green)">0.827</td></tr>
+              <tr><td>All 256 SAE features, nonlinear</td><td style="color:var(--green)"><strong>0.958</strong></td></tr>
+            </tbody>
+          </table>
+          <div class="finding">
+            Country's Z/2 encoding distributes across many sparse features — no single dictionary atom
+            reaches above 60%. The top-2 features capture the two arms of the V-shape (positive and
+            negative food projections), together achieving 0.707. All 256 features recover 0.958
+            nonlinearly, matching the original nonlinear probe. The representation is genuinely
+            distributed: country is not monosemantically stored in any single SAE feature.
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 8: Bilinear Model -->
+      <div class="tab-panel" id="tab-bilinear" style="display:none">
+        <div class="tab-card">
+          <div class="tab-card-title">Bilinear Text Model + CPD Analysis</div>
+          <div class="tab-card-theory">Theory: Bilinear layers are their own CPD decomposition. The original country encoding is a rank-1 bilinear form — a bilinear model is the natural architecture.</div>
+          <p>A single bilinear layer replaces the full ReLU MLP: <code>h2 = (W_L · emb) ⊙ (W_R · emb)</code>. By construction, <code>B[f,i,j] = Σ_r D[f,r] L[i,r] R[j,r]</code> — the weight matrices ARE the CPD factors.</p>
+          <table class="data-table" style="margin:0.75rem 0">
+            <thead><tr><th>Feature</th><th>Linear probe</th><th>Nonlinear probe</th></tr></thead>
+            <tbody>
+              <tr><td>country (baseline: 0.471 linear)</td><td style="color:var(--green)"><strong>0.993</strong></td><td style="color:var(--green)">0.992</td></tr>
+              <tr><td>food</td><td>0.983</td><td>0.980</td></tr>
+              <tr><td>question</td><td>0.999</td><td>0.999</td></tr>
+              <tr><td>sentiment</td><td>0.981</td><td>0.977</td></tr>
+              <tr><td>XOR (bilinear vs ReLU)</td><td>0.963 vs 0.951 (Δ=+0.013)</td><td>0.977</td></tr>
+            </tbody>
+          </table>
+          <div class="finding" style="border-color:var(--amber)">
+            <strong>Key finding:</strong> A bilinear layer encodes country <em>linearly</em> (0.993 vs 0.471 in the original).
+            A bilinear layer naturally implements quadratic forms — the rank-1 form <code>(wf·h2)²</code>
+            becomes a linear function of h2 in the bilinear basis. The original model's probe resistance
+            for country arises from the ReLU nonlinearities, not from the bilinear product structure.
+            XOR is slightly <em>more</em> linearly accessible in the bilinear model (Δ=+0.013) — bilinear
+            directly computes the product of two linear features.
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 9: Bottleneck Superposition -->
+      <div class="tab-panel" id="tab-bottleneck" style="display:none">
+        <div class="tab-card">
+          <div class="tab-card-title">Bottleneck Superposition (Emergent)</div>
+          <div class="tab-card-theory">Theory: Anthropic's superposition hypothesis — capacity pressure forces multiple features to share dimensions. Unit-norm eliminates the magnitude channel, so geometry must be angular.</div>
+          <p class="tab-card-desc">
+            A <strong>narrow d-dimensional bottleneck with unit-norm</strong> (<code>F.normalize</code>)
+            forces all representations onto the d-sphere. Two variants: d=4 and d=2.
+            No target positions are prescribed — geometry is <em>fully emergent</em>.
+            Eight per-feature MLP heads (d→16→ReLU→1) achieve high accuracy regardless of geometry.
+            The unit-norm constraint eliminates the magnitude channel used by the original model,
+            so all information must be angular.
+          </p>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;margin-bottom:1rem">
+            <div>
+              <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.4rem">d = 4 probes (acc=0.846)</div>
+              <table class="data-table">
+                <thead><tr><th>Feature</th><th>Linear</th><th>Nonlinear</th><th>Gap</th></tr></thead>
+                <tbody>
+                  <tr><td>number</td><td>0.583</td><td>0.599</td><td>+0.015</td></tr>
+                  <tr><td>question</td><td>0.993</td><td>0.993</td><td>+0.000</td></tr>
+                  <tr><td>color</td><td>0.679</td><td>0.787</td><td>+0.107</td></tr>
+                  <tr><td>food</td><td>0.894</td><td>0.896</td><td>+0.002</td></tr>
+                  <tr><td>sentiment</td><td>0.551</td><td>0.759</td><td>+0.208</td></tr>
+                  <tr><td>country</td><td>0.937</td><td>0.936</td><td>-0.001</td></tr>
+                  <tr style="background:rgba(129,140,248,0.1)"><td><strong>person</strong></td><td style="color:var(--red)"><strong>0.485</strong></td><td style="color:var(--green)"><strong>0.907</strong></td><td style="color:var(--green)"><strong>+0.421</strong></td></tr>
+                  <tr><td>body_part</td><td>0.866</td><td>0.866</td><td>+0.000</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.4rem">d = 2 probes (acc=0.697)</div>
+              <table class="data-table">
+                <thead><tr><th>Feature</th><th>Linear</th><th>Nonlinear</th><th>Gap</th></tr></thead>
+                <tbody>
+                  <tr><td>number</td><td>0.514</td><td>0.536</td><td>+0.022</td></tr>
+                  <tr><td>question</td><td style="color:var(--red)">0.482</td><td>0.521</td><td>+0.039</td></tr>
+                  <tr><td>color</td><td>0.521</td><td>0.531</td><td>+0.009</td></tr>
+                  <tr><td>food</td><td>0.705</td><td style="color:var(--green)">0.893</td><td>+0.189</td></tr>
+                  <tr><td>sentiment</td><td>0.608</td><td style="color:var(--green)">0.797</td><td>+0.189</td></tr>
+                  <tr><td>country</td><td>0.677</td><td style="color:var(--green)">0.858</td><td>+0.181</td></tr>
+                  <tr><td>person</td><td>0.495</td><td>0.492</td><td>-0.003</td></tr>
+                  <tr style="background:rgba(129,140,248,0.1)"><td><strong>body_part</strong></td><td style="color:var(--green)"><strong>0.949</strong></td><td><strong>0.948</strong></td><td>-0.001</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="margin-bottom:1rem">
+            <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.4rem">Angular frequency R² (d=2): R² of y ~ cos(k·θ)+sin(k·θ)</div>
+            <table class="data-table">
+              <thead><tr><th>Feature</th><th>k=1</th><th>k=2</th><th>k=3</th><th>k=4</th><th>Peak k</th></tr></thead>
+              <tbody>
+                <tr><td>number</td><td>0.002</td><td>0.001</td><td>0.004</td><td>0.004</td><td>k=4</td></tr>
+                <tr><td>question</td><td>0.003</td><td>0.005</td><td>0.002</td><td>0.001</td><td>k=2</td></tr>
+                <tr><td>color</td><td>0.002</td><td>0.004</td><td>0.004</td><td>0.004</td><td>k=2</td></tr>
+                <tr><td>food</td><td>0.228</td><td style="color:var(--amber)"><strong>0.318</strong></td><td>0.085</td><td>0.078</td><td>k=2</td></tr>
+                <tr><td>sentiment</td><td>0.103</td><td style="color:var(--amber)"><strong>0.229</strong></td><td>0.060</td><td>0.010</td><td>k=2</td></tr>
+                <tr><td>country</td><td>0.147</td><td style="color:var(--amber)"><strong>0.486</strong></td><td>0.045</td><td>0.043</td><td>k=2</td></tr>
+                <tr><td>person</td><td>0.001</td><td>0.002</td><td>0.001</td><td>0.001</td><td>k=2</td></tr>
+                <tr style="background:rgba(129,140,248,0.1)"><td><strong>body_part</strong></td><td style="color:var(--green)"><strong>0.665</strong></td><td>0.021</td><td>0.108</td><td>0.016</td><td>k=1</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="finding" style="border-color:var(--green)">
+            <strong>Key finding:</strong>
+            In d=4, <strong>person</strong> has the largest nonlinear gap of any text-domain experiment (<strong>+0.421</strong>):
+            linear probe = 0.485 (chance), nonlinear = 0.907 — emergent nonlinear encoding with no prescribed geometry.
+            In d=2, <strong>body_part</strong> dominates the unit circle (k=1, R²=0.665 — clean half-arc split),
+            while <strong>country</strong>, <strong>food</strong>, and <strong>sentiment</strong> use k=2 angular encoding
+            (alternating twice around the circle). The remaining four features are squeezed out of the angular structure
+            entirely, consistent with the 2D capacity limit. This is the first text-domain experiment where
+            probe resistance emerges purely from architectural pressure.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SUMMARY ───────────────────────────────────────────────────────── -->
+  <section id="summary">
+    <div class="section-header">
+      <span class="badge summary">SUMMARY</span>
+      <h2 class="section-title">Comparison of All Encodings</h2>
+      <p class="section-desc">
+        Ordered from clearest failure to clearest success. Most approaches failed to beat the baseline
+        on probe difficulty — and those failures are the most instructive results.
+      </p>
+    </div>
+
+    <div class="card" style="margin-bottom:1.75rem;overflow-x:auto">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>Encoding</th>
+            <th>Linear probe</th>
+            <th>Verdict</th>
+            <th>Key lesson</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="baseline">
+            <td>Baseline (abs-value)</td>
+            <td class="mono" style="color:var(--red)">0.50</td>
+            <td>—</td>
+            <td>Z/2 symmetry, 1D</td>
+          </tr>
+          <tr>
+            <td>XOR / parity</td>
+            <td class="mono" style="color:var(--green)">0.95</td>
+            <td style="color:var(--red)">Failed — linearised</td>
+            <td>Depth beats label complexity</td>
+          </tr>
+          <tr>
+            <td>Helical</td>
+            <td class="mono" style="color:var(--green)">0.99</td>
+            <td style="color:var(--red)">Failed — collapsed to 1D</td>
+            <td>Helix needs multi-valued labels</td>
+          </tr>
+          <tr>
+            <td>Rotational SO(2)</td>
+            <td class="mono" style="color:var(--green)">0.99</td>
+            <td style="color:var(--amber)">Partial — orthogonal structure achieved</td>
+            <td>Binary labels always linearly separable</td>
+          </tr>
+          <tr>
+            <td>JEPA residual</td>
+            <td class="mono" style="color:var(--red)">0.47</td>
+            <td style="color:var(--amber)">Informative — erasure not encoding</td>
+            <td>Explicit erasure strips a feature from a layer</td>
+          </tr>
+          <tr>
+            <td>Superposition</td>
+            <td class="mono" style="color:var(--amber)">0.98 / 0.74</td>
+            <td style="color:var(--amber)">Partial — geometrically richer</td>
+            <td>2D shared encoding; two features, one space</td>
+          </tr>
+          <tr>
+            <td>MNIST circular (10-class) + unit-norm</td>
+            <td class="mono" style="color:var(--red)"><strong>0.51</strong></td>
+            <td style="color:var(--green)"><strong>Best — genuinely probe-resistant</strong></td>
+            <td>Multi-class interleaving + unit-norm constraint</td>
+          </tr>
+          <tr>
+            <td>SAE decomposition (h2, all 256 feats)</td>
+            <td class="mono" style="color:var(--amber)">0.83</td>
+            <td style="color:var(--amber)">Analytical — distributed encoding</td>
+            <td>Country spreads across many sparse features</td>
+          </tr>
+          <tr>
+            <td>Bilinear model (country)</td>
+            <td class="mono" style="color:var(--green)">0.993</td>
+            <td style="color:var(--red)">Informative — ReLU is the source</td>
+            <td>Bilinear linearises the rank-1 quadratic form</td>
+          </tr>
+          <tr>
+            <td>Bottleneck d=4 (unit-norm, emergent)</td>
+            <td class="mono" style="color:var(--red)">0.49 (person)</td>
+            <td style="color:var(--amber)">Emergent — nonlinear by capacity</td>
+            <td>person: linear=0.49, nonlinear=0.91 (+0.42 gap)</td>
+          </tr>
+          <tr>
+            <td>Bottleneck d=2 (unit-norm, emergent)</td>
+            <td class="mono" style="color:var(--red)"><strong>0.48 (question)</strong></td>
+            <td style="color:var(--green)"><strong>Emergent — angular superposition</strong></td>
+            <td>body_part k=1; country/food/sentiment k=2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chart-wrap" style="margin-bottom:1.5rem;height:220px">
+      <div class="card-title">Chart F — Linear Probe Accuracy by Encoding</div>
+      <canvas id="chartF"></canvas>
+    </div>
+
+    <div class="insight">
+      <strong>Key takeaway:</strong> The MNIST circular (with unit-norm) achieves linear probe = 0.51 (chance),
+      and the text bottleneck d=2 achieves 0.48 — the lowest linear probe for any text-domain encoding tested. The baseline abs-value and JEPA residual also
+      defeat linear probes. The bilinear analysis reveals <em>why</em> the original encoding works: the country
+      encoding is a rank-1 bilinear form, and a bilinear layer naturally exposes this as a linear feature
+      (0.993). The probe resistance in the original model comes from ReLU nonlinearities, not the multiplicative
+      structure. The SAE analysis confirms country is distributed across many sparse features — no single
+      dictionary atom decodes it alone.
+    </div>
+  </section>
+</div>
+
+<!-- ─── FOOTER ────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    BlueDot TAIS — Puzzle 1 &nbsp;·&nbsp; 2026
+  </div>
+</footer>
+
+<script>
+// ─── GLOBAL CHART DEFAULTS ──────────────────────────────────────────────────
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#334155';
+Chart.defaults.font.family = 'Inter';
+
+const ANIM = { duration: 800, easing: 'easeInOutQuart' };
+
+const TOOLTIP = {
+  backgroundColor: '#1e293b',
+  borderColor: '#334155',
+  borderWidth: 1,
+  titleColor: '#f8fafc',
+  bodyColor: '#94a3b8',
+  padding: 10,
+  cornerRadius: 8,
+  titleFont: { family: 'JetBrains Mono', size: 12, weight: '500' },
+  bodyFont: { family: 'JetBrains Mono', size: 11 },
+};
+
+// ─── CHART A — Probe comparison horizontal bar ──────────────────────────────
+{
+  const features = ['number','question','color','food','sentiment','country','person','body_part'];
+  const linear =      [0.975, 1.000, 0.973, 0.984, 0.981, 0.471, 0.999, 0.981];
+  const nonlinear =   [0.975, 1.000, 0.975, 0.984, 0.983, 0.966, 0.999, 0.983];
+
+  // Country (index 5) gets distinct styling
+  const linearColors = features.map((f, i) =>
+    i === 5 ? 'rgba(129,140,248,1)' : 'rgba(129,140,248,0.55)');
+  const nonlinearColors = features.map((f, i) =>
+    i === 5 ? 'rgba(52,211,153,1)' : 'rgba(52,211,153,0.55)');
+
+  new Chart(document.getElementById('chartA'), {
+    type: 'bar',
+    data: {
+      labels: features,
+      datasets: [
+        {
+          label: 'Linear probe',
+          data: linear,
+          backgroundColor: linearColors,
+          borderRadius: 4,
+          borderSkipped: false,
+        },
+        {
+          label: 'Nonlinear probe',
+          data: nonlinear,
+          backgroundColor: nonlinearColors,
+          borderRadius: 4,
+          borderSkipped: false,
+        },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      animation: ANIM,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: TOOLTIP,
+        legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+        annotation: {
+          annotations: {
+            chanceLine: {
+              type: 'line',
+              xMin: 0.5, xMax: 0.5,
+              borderColor: 'rgba(251,191,36,0.7)',
+              borderWidth: 1.5,
+              borderDash: [5, 4],
+              label: {
+                display: true, content: 'chance',
+                color: '#fbbf24', font: { size: 10, family: 'JetBrains Mono' },
+                position: 'start', yAdjust: -12,
+              },
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          min: 0.4, max: 1.0,
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 } },
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            font: { family: 'JetBrains Mono', size: 10 },
+            color: (ctx) => ctx.tick.label === 'country' ? '#fbbf24' : '#94a3b8',
+          },
+        },
+      },
+    },
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const xScale = chart.scales.x;
+        const x05 = xScale.getPixelForValue(0.5);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(251,191,36,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x05, chart.chartArea.top);
+        ctx.lineTo(x05, chart.chartArea.bottom);
+        ctx.stroke();
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '10px JetBrains Mono';
+        ctx.fillText('chance', x05 + 4, chart.chartArea.top + 12);
+        ctx.restore();
+      }
+    }],
+  });
+}
+
+// ─── CHART B — Layer trace ─────────────────────────────────────────────────
+{
+  const layers = ['emb', 'h0', 'h1', 'h2', 'h3', 'logits'];
+  const linearData =    [0.993, 0.989, 0.993, 0.471, 0.964, 0.963];
+  const nonlinearData = [0.991, 0.991, 0.991, 0.966, 0.970, 0.965];
+
+  new Chart(document.getElementById('chartB'), {
+    type: 'line',
+    data: {
+      labels: layers,
+      datasets: [
+        {
+          label: 'Linear probe',
+          data: linearData,
+          borderColor: '#818cf8',
+          backgroundColor: 'rgba(129,140,248,0.12)',
+          pointBackgroundColor: linearData.map((v, i) => i === 3 ? '#f87171' : '#818cf8'),
+          pointRadius: linearData.map((v, i) => i === 3 ? 7 : 4),
+          pointHoverRadius: 7,
+          tension: 0.3,
+          fill: false,
+          borderWidth: 2,
+        },
+        {
+          label: 'Nonlinear probe',
+          data: nonlinearData,
+          borderColor: '#34d399',
+          backgroundColor: 'rgba(52,211,153,0.1)',
+          pointBackgroundColor: '#34d399',
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          tension: 0.3,
+          fill: false,
+          borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      animation: ANIM,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: TOOLTIP,
+        legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+      },
+      scales: {
+        y: {
+          min: 0.4, max: 1.02,
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 } },
+        },
+        x: {
+          grid: { color: 'rgba(51,65,85,0.3)' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 } },
+        },
+      },
+    },
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        // vertical band at h2 (index 3)
+        const xH2 = xScale.getPixelForValue(3);
+        const bandW = xScale.getPixelForValue(4) - xScale.getPixelForValue(2);
+        ctx.save();
+        ctx.fillStyle = 'rgba(251,191,36,0.07)';
+        ctx.fillRect(xH2 - bandW / 2, chart.chartArea.top, bandW, chart.chartArea.height);
+        // label
+        ctx.fillStyle = 'rgba(251,191,36,0.8)';
+        ctx.font = '9px Inter';
+        ctx.fillText('Gap introduced here', xH2 - 40, chart.chartArea.top + 14);
+        ctx.restore();
+      }
+    }],
+  });
+}
+
+// ─── CHART C — Food-axis histogram (Gaussian blobs) ─────────────────────────
+{
+  const bins = 60;
+  const lo = -40, hi = 40;
+  const binWidth = (hi - lo) / bins;
+  const binCenters = Array.from({length: bins}, (_, i) => lo + (i + 0.5) * binWidth);
+
+  function gaussian(x, mu, sigma) {
+    return Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI));
+  }
+
+  const groups = [
+    { label: 'country=0, food=0', mu: -21.8, sigma: 5.5, n: 368, color: 'rgba(96,165,250,0.7)' },
+    { label: 'country=0, food=1', mu: +18.9, sigma: 5.5, n: 386, color: 'rgba(251,146,60,0.7)' },
+    { label: 'country=1, food=0', mu: -5.0,  sigma: 5.0, n: 381, color: 'rgba(52,211,153,0.7)' },
+    { label: 'country=1, food=1', mu: +4.4,  sigma: 5.0, n: 365, color: 'rgba(248,113,113,0.7)' },
+  ];
+
+  const datasets = groups.map(g => ({
+    label: g.label,
+    data: binCenters.map(x => gaussian(x, g.mu, g.sigma) * g.n * binWidth),
+    backgroundColor: g.color,
+    borderColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 2,
+    borderSkipped: false,
+  }));
+
+  new Chart(document.getElementById('chartC'), {
+    type: 'bar',
+    data: { labels: binCenters.map(v => v.toFixed(0)), datasets },
+    options: {
+      animation: ANIM,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: { ...TOOLTIP, mode: 'index', intersect: false },
+        legend: { labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12 } },
+      },
+      scales: {
+        x: {
+          stacked: false,
+          ticks: {
+            maxTicksLimit: 9,
+            font: { family: 'JetBrains Mono', size: 9 },
+            callback(val, idx) {
+              const v = parseFloat(this.getLabelForValue(idx));
+              return (v % 10 === 0 || Math.abs(v) < 2) ? v : '';
+            },
+          },
+          grid: { color: 'rgba(51,65,85,0.3)' },
+        },
+        y: {
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: { font: { family: 'JetBrains Mono', size: 9 } },
+          title: { display: true, text: 'Count (approx)', color: '#64748b', font: { size: 10 } },
+        },
+      },
+    },
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        // left region label
+        const xLeft = xScale.getPixelForValue(10);
+        const xRight = xScale.getPixelForValue(49);
+        ctx.save();
+        ctx.fillStyle = 'rgba(248,113,113,0.12)';
+        ctx.fillRect(chart.chartArea.left, chart.chartArea.top, xLeft - chart.chartArea.left, chart.chartArea.height);
+        ctx.fillRect(xRight, chart.chartArea.top, chart.chartArea.right - xRight, chart.chartArea.height);
+        ctx.fillStyle = 'rgba(248,113,113,0.7)';
+        ctx.font = '9px Inter';
+        ctx.fillText('country=0 → large |proj|', chart.chartArea.left + 2, chart.chartArea.top + 14);
+        ctx.restore();
+      }
+    }],
+  });
+}
+
+// ─── CHART D — Decoder comparison ─────────────────────────────────────────
+{
+  new Chart(document.getElementById('chartD'), {
+    type: 'bar',
+    data: {
+      labels: ['Raw projection', '|projection|', 'projection²'],
+      datasets: [{
+        data: [0.502, 0.946, 0.946],
+        backgroundColor: ['rgba(248,113,113,0.8)', 'rgba(52,211,153,0.8)', 'rgba(52,211,153,0.8)'],
+        borderRadius: 6,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      animation: ANIM,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: TOOLTIP,
+        legend: { display: false },
+        datalabels: { display: false },
+      },
+      scales: {
+        y: {
+          min: 0.4, max: 1.0,
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 } },
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'Inter', size: 11 } },
+        },
+      },
+    },
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const yScale = chart.scales.y;
+        // chance line
+        const yChance = yScale.getPixelForValue(0.5);
+        const yResult = yScale.getPixelForValue(0.946);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(248,113,113,0.6)';
+        ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.moveTo(chart.chartArea.left, yChance); ctx.lineTo(chart.chartArea.right, yChance); ctx.stroke();
+        ctx.fillStyle = '#f87171'; ctx.font = '10px JetBrains Mono';
+        ctx.fillText('chance 0.500', chart.chartArea.right - 100, yChance - 4);
+        ctx.strokeStyle = 'rgba(52,211,153,0.5)';
+        ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(chart.chartArea.left, yResult); ctx.lineTo(chart.chartArea.right, yResult); ctx.stroke();
+        ctx.fillStyle = '#34d399';
+        ctx.fillText('0.946', chart.chartArea.right - 44, yResult - 4);
+        ctx.restore();
+      }
+    }],
+  });
+}
+
+// ─── CHART E — Hidden units capacity ─────────────────────────────────────
+{
+  new Chart(document.getElementById('chartE'), {
+    type: 'bar',
+    data: {
+      labels: ['1', '2', '4', '8', '16'],
+      datasets: [{
+        label: 'Accuracy',
+        data: [0.721, 0.950, 0.960, 0.959, 0.965],
+        backgroundColor: [
+          'rgba(248,113,113,0.7)',
+          'rgba(52,211,153,0.9)',
+          'rgba(52,211,153,0.7)',
+          'rgba(52,211,153,0.7)',
+          'rgba(52,211,153,0.7)',
+        ],
+        borderRadius: 5,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      animation: ANIM,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: TOOLTIP,
+        legend: { display: false },
+      },
+      scales: {
+        y: {
+          min: 0.6, max: 1.0,
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: { font: { family: 'JetBrains Mono', size: 9 } },
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 } },
+          title: { display: true, text: 'Hidden units', color: '#64748b', font: { size: 10 } },
+        },
+      },
+    },
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const yScale = chart.scales.y;
+        const y = yScale.getPixelForValue(0.950);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(52,211,153,0.5)';
+        ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
+        ctx.fillStyle = '#34d399'; ctx.font = '9px JetBrains Mono';
+        ctx.fillText('2 units sufficient', chart.chartArea.left + 4, y - 4);
+        ctx.restore();
+      }
+    }],
+  });
+}
+
+// ─── TAB CHARTS ───────────────────────────────────────────────────────────
+
+// Tab 1 — XOR
+new Chart(document.getElementById('chartT1'), {
+  type: 'bar',
+  data: {
+    labels: ['Linear (h2)', '2-layer MLP'],
+    datasets: [{
+      data: [0.951, 0.982],
+      backgroundColor: ['rgba(129,140,248,0.8)', 'rgba(52,211,153,0.8)'],
+      borderRadius: 6, borderSkipped: false,
+    }],
+  },
+  options: {
+    animation: ANIM, responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: TOOLTIP, legend: { display: false } },
+    scales: {
+      y: { min: 0.45, max: 1.0, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+    },
+  },
+  plugins: [{
+    afterDraw(chart) {
+      const ctx = chart.ctx; const yScale = chart.scales.y;
+      const y = yScale.getPixelForValue(0.5);
+      ctx.save(); ctx.strokeStyle = 'rgba(248,113,113,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
+      ctx.fillStyle = '#f87171'; ctx.font = '9px JetBrains Mono'; ctx.fillText('chance', chart.chartArea.right - 50, y - 3);
+      ctx.restore();
+    }
+  }],
+});
+
+// Tab 2 — Rotational
+new Chart(document.getElementById('chartT2'), {
+  type: 'bar',
+  data: {
+    labels: ['Linear on h2', 'Angular 2D'],
+    datasets: [{
+      data: [0.989, 0.988],
+      backgroundColor: ['rgba(129,140,248,0.8)', 'rgba(52,211,153,0.8)'],
+      borderRadius: 6, borderSkipped: false,
+    }],
+  },
+  options: {
+    animation: ANIM, responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: TOOLTIP, legend: { display: false } },
+    scales: {
+      y: { min: 0.95, max: 1.0, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+    },
+  },
+});
+
+// Tab 3 — JEPA
+new Chart(document.getElementById('chartT3'), {
+  type: 'bar',
+  data: {
+    labels: ['Linear raw h2', 'Linear residual'],
+    datasets: [
+      {
+        label: 'country probe',
+        data: [0.471, 0.551],
+        backgroundColor: ['rgba(248,113,113,0.8)', 'rgba(251,191,36,0.8)'],
+        borderRadius: 6, borderSkipped: false,
+      },
+    ],
+  },
+  options: {
+    animation: ANIM, responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: TOOLTIP, legend: { display: false } },
+    scales: {
+      y: { min: 0.4, max: 0.7, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+    },
+  },
+  plugins: [{
+    afterDraw(chart) {
+      const ctx = chart.ctx; const yScale = chart.scales.y;
+      const y = yScale.getPixelForValue(0.5);
+      ctx.save(); ctx.strokeStyle = 'rgba(248,113,113,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
+      ctx.fillStyle = '#f87171'; ctx.font = '9px JetBrains Mono'; ctx.fillText('chance', chart.chartArea.right - 50, y - 3);
+      ctx.restore();
+    }
+  }],
+});
+
+// Tab 4 — Helical
+new Chart(document.getElementById('chartT4'), {
+  type: 'bar',
+  data: {
+    labels: ['1D projection', '2D angular', '3D helical'],
+    datasets: [{
+      data: [0.989, 0.993, 0.993],
+      backgroundColor: ['rgba(129,140,248,0.7)', 'rgba(129,140,248,0.85)', 'rgba(52,211,153,0.8)'],
+      borderRadius: 6, borderSkipped: false,
+    }],
+  },
+  options: {
+    animation: ANIM, responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: TOOLTIP, legend: { display: false } },
+    scales: {
+      y: { min: 0.97, max: 1.0, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+    },
+  },
+});
+
+// Tab 5 — Superposition
+new Chart(document.getElementById('chartT5'), {
+  type: 'bar',
+  data: {
+    labels: ['country', 'food'],
+    datasets: [
+      {
+        label: 'Probe accuracy',
+        data: [0.978, 0.738],
+        backgroundColor: ['rgba(52,211,153,0.85)', 'rgba(251,191,36,0.8)'],
+        borderRadius: 6, borderSkipped: false,
+      },
+      {
+        label: 'Chance',
+        data: [0.503, 0.501],
+        backgroundColor: ['rgba(248,113,113,0.3)', 'rgba(248,113,113,0.3)'],
+        borderRadius: 6, borderSkipped: false,
+      },
+    ],
+  },
+  options: {
+    animation: ANIM, responsive: true, maintainAspectRatio: false,
+    plugins: {
+      tooltip: TOOLTIP,
+      legend: { labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 } },
+    },
+    scales: {
+      y: { min: 0.4, max: 1.0, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+    },
+  },
+});
+
+// ─── CHART F — Summary linear probes ──────────────────────────────────────
+{
+  const labels = ['Baseline\n(abs-value)', 'XOR /\nparity', 'Rotational\nSO(2)', 'JEPA\nresidual', 'Helical', 'Superposition\n(country)'];
+  const data = [0.50, 0.95, 0.99, 0.47, 0.99, 0.98];
+  const colors = [
+    'rgba(100,116,139,0.7)',
+    'rgba(129,140,248,0.85)',
+    'rgba(129,140,248,0.85)',
+    'rgba(100,116,139,0.7)',
+    'rgba(129,140,248,0.85)',
+    'rgba(129,140,248,0.85)',
+  ];
+
+  new Chart(document.getElementById('chartF'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Linear probe accuracy',
+        data,
+        backgroundColor: colors,
+        borderRadius: 6, borderSkipped: false,
+      }],
+    },
+    options: {
+      animation: ANIM, responsive: true, maintainAspectRatio: false,
+      plugins: {
+        tooltip: TOOLTIP,
+        legend: { display: false },
+      },
+      scales: {
+        y: {
+          min: 0.3, max: 1.05,
+          grid: { color: 'rgba(51,65,85,0.5)' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 } },
+          title: { display: true, text: 'Linear probe accuracy', color: '#64748b', font: { size: 10 } },
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, maxRotation: 0 },
+        },
+      },
+    },
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx; const yScale = chart.scales.y;
+        const y = yScale.getPixelForValue(0.5);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(248,113,113,0.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
+        ctx.fillStyle = '#f87171'; ctx.font = '10px JetBrains Mono';
+        ctx.fillText('chance (0.50)', chart.chartArea.right - 95, y - 5);
+        ctx.restore();
+      }
+    }],
+  });
+}
+
+// ─── TABS INTERACTION ─────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + target).classList.add('active');
+  });
+});
+
+// ─── NAV ACTIVE HIGHLIGHT ─────────────────────────────────────────────────
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('nav a');
+
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-40% 0px -55% 0px' });
+
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

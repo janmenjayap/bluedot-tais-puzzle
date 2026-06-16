@@ -46,8 +46,21 @@ print(f"linear probe (h2)    : {lin_h2:.3f}")
 print(f"linear probe (2D)    : {lin_2d:.3f}")
 print(f"angular decoder (2D) : {acc_angular:.3f}  (expected >0.85)")
 
+# Per-group geometry: mean angle (deg), std angle (deg), mean radius
+radii_te = np.linalg.norm(proj_te, axis=1)
+angles_te_deg = np.degrees(angles_te)
+geo_rows = []
+for v in [0, 1]:
+    m = cte == v
+    ang_mean = float(np.degrees(np.arctan2(np.sin(angles_te[m]).mean(), np.cos(angles_te[m]).mean())))
+    ang_std  = float(np.degrees(np.std(angles_te[m])))
+    rad_mean = float(radii_te[m].mean())
+    print(f"country={v}: mean_angle={ang_mean:.1f}°  std_angle={ang_std:.1f}°  mean_radius={rad_mean:.2f}")
+    geo_rows.append({"country": v, "mean_angle_deg": ang_mean, "std_angle_deg": ang_std, "mean_radius": rad_mean})
+
 pd.DataFrame([{"base": base, "linear_h2": lin_h2, "linear_2d": lin_2d, "angular": acc_angular}]
              ).to_csv("artifacts/results/11_rotation_probes.csv", index=False)
+pd.DataFrame(geo_rows).to_csv("artifacts/results/11_rotation_geometry_stats.csv", index=False)
 
 fig, ax = plt.subplots(figsize=(5, 5))
 for v, marker, label in [(0, "o", "country=0"), (1, "^", "country=1")]:

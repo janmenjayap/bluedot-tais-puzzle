@@ -38,6 +38,17 @@ def helical_loss(proj_3d: torch.Tensor, binary_labels: torch.Tensor,
     return F.mse_loss(F.normalize(proj_3d, dim=1), F.normalize(targets, dim=1))
 
 
+def circular_loss_multiclass(proj_2d: torch.Tensor, labels: torch.Tensor,
+                             n_classes: int = 10) -> torch.Tensor:
+    """
+    Drive proj_2d onto unit circle: class k → angle k * 2π/n_classes.
+    proj_2d: (N, 2)  labels: (N,) int/long
+    """
+    angles = labels.float() * (2 * math.pi / n_classes)
+    targets = torch.stack([angles.cos(), angles.sin()], dim=1)
+    return F.mse_loss(F.normalize(proj_2d, dim=1), targets)
+
+
 def superposition_loss(proj_2d: torch.Tensor,
                        country_labels: torch.Tensor,
                        food_labels: torch.Tensor) -> torch.Tensor:

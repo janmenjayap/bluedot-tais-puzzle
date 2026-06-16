@@ -48,6 +48,8 @@ mse_linear = np.mean((W.predict(other_te) - predicted_h2_te) ** 2)
 mse_total  = np.mean(predicted_h2_te ** 2)
 frac = mse_linear / mse_total if mse_total > 0 else float("nan")
 print(f"\nLinearity of P: linear approx MSE={mse_linear:.4f}  total var={mse_total:.4f}  unexplained={frac:.3f}")
+df["linearity_unexplained_frac"] = frac
+df.to_csv("artifacts/results/13_jepa_probes.csv", index=False)
 
 fig, ax = plt.subplots(figsize=(9, 4))
 x = np.arange(len(df))
