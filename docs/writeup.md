@@ -230,8 +230,8 @@ the operator is orthogonal.
 | Linear on full h2 | 0.989 |
 | Angular decoder on 2D projection | 0.988 |
 
-The angular separation is clean: country=0 clusters at mean 1.3° (std
-8.5°), country=1 at mean 89.1° (std 8.7°) — very close to the intended
+The angular separation is clean: country=0 clusters at mean 1.0° (std
+8.5°), country=1 at mean 89.4° (std 8.7°) — very close to the intended
 0° and 90°. However the points are not on the unit circle. Country=0 has
 mean radius 6.24, country=1 has mean radius 3.67 — the model also used
 radial magnitude as a discriminative signal, even though that was not
