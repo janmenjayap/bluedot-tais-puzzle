@@ -207,3 +207,101 @@ class HeadBottleneck(nn.Module):
         """Return logits for all 8 features, shape [N, 8]."""
         b = self.bottle(x)
         return torch.cat([h(b) for h in self.heads], dim=1)
+
+
+class HeadSquareWave(nn.Module):
+    """Experiment A: a binary feature constrained to the k-th harmonic of a 2-D unit circle.
+    country (country_idx) is read out as α·cos(kθ)+β·sin(kθ)+b; the other 7 features use
+    free MLP heads (2→16→ReLU→1) and act as the spreader that populates θ.
+    """
+    def __init__(self, k: int = 2, country_idx: int = 5):
+        super().__init__()
+        self.k = k
+        self.country_idx = country_idx
+        self.enc = nn.Sequential(
+            nn.Linear(384, 64), nn.ReLU(),
+            nn.Linear(64, 64),  nn.ReLU(),
+        )
+        self.proj = nn.Linear(64, 2)
+        self.harm = nn.Linear(2, 1)            # α·cos(kθ) + β·sin(kθ) + b
+        self.heads = nn.ModuleList([
+            nn.Sequential(nn.Linear(2, 16), nn.ReLU(), nn.Linear(16, 1))
+            for _ in range(8)
+        ])
+
+    def circle(self, x: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.proj(self.enc(x)), dim=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b = self.circle(x)
+        theta = torch.atan2(b[:, 1], b[:, 0])
+        harm_feat = torch.stack([torch.cos(self.k * theta),
+                                 torch.sin(self.k * theta)], dim=1)
+        country_logit = self.harm(harm_feat)
+        cols = []
+        for fi in range(8):
+            cols.append(country_logit if fi == self.country_idx else self.heads[fi](b))
+        return torch.cat(cols, dim=1)
+
+
+class HeadFourierComb(nn.Module):
+    """Experiment α: multiplex several binary features onto one 2-D circle, each on a
+    distinct harmonic (default country→k=2, food→k=3, sentiment→k=4). Multiplexing is
+    itself the spreader. Remaining features use free MLP heads (2→16→ReLU→1).
+    """
+    def __init__(self, harmonics=None):
+        super().__init__()
+        self.harmonics = harmonics or {5: 2, 3: 3, 4: 4}
+        self.enc = nn.Sequential(
+            nn.Linear(384, 64), nn.ReLU(),
+            nn.Linear(64, 64),  nn.ReLU(),
+        )
+        self.proj = nn.Linear(64, 2)
+        self.harm = nn.ModuleDict({str(fi): nn.Linear(2, 1) for fi in self.harmonics})
+        self.heads = nn.ModuleList([
+            nn.Sequential(nn.Linear(2, 16), nn.ReLU(), nn.Linear(16, 1))
+            for _ in range(8)
+        ])
+
+    def circle(self, x: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.proj(self.enc(x)), dim=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b = self.circle(x)
+        theta = torch.atan2(b[:, 1], b[:, 0])
+        cols = []
+        for fi in range(8):
+            if fi in self.harmonics:
+                k = self.harmonics[fi]
+                hf = torch.stack([torch.cos(k * theta), torch.sin(k * theta)], dim=1)
+                cols.append(self.harm[str(fi)](hf))
+            else:
+                cols.append(self.heads[fi](b))
+        return torch.cat(cols, dim=1)
+
+
+class HeadLinkedRings(nn.Module):
+    """Experiment γ: country encoded as two linked rings in a 3-D bottleneck.
+    country=0 → ring A (xy-plane, centre origin), country=1 → ring B (xz-plane,
+    centre (1,0,0)). The within-ring angle carries food (the mandatory spreader).
+    All 8 features are decoded by per-feature MLP heads (3→16→ReLU→1).
+    The bottleneck is NOT unit-normalised (the two rings sit at different centres).
+    """
+    def __init__(self):
+        super().__init__()
+        self.enc = nn.Sequential(
+            nn.Linear(384, 64), nn.ReLU(),
+            nn.Linear(64, 64),  nn.ReLU(),
+        )
+        self.bottleneck = nn.Linear(64, 3)
+        self.heads = nn.ModuleList([
+            nn.Sequential(nn.Linear(3, 16), nn.ReLU(), nn.Linear(16, 1))
+            for _ in range(8)
+        ])
+
+    def bottle(self, x: torch.Tensor) -> torch.Tensor:
+        return self.bottleneck(self.enc(x))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b = self.bottle(x)
+        return torch.cat([h(b) for h in self.heads], dim=1)

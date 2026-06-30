@@ -121,3 +121,40 @@ def test_linked_rings_loss_zero_at_targets():
     bottle = torch.tensor([targetA, targetB])
     loss = linked_rings_loss(bottle, country, food)
     assert loss.item() < 1e-6
+
+
+def test_head_squarewave_shapes():
+    from src.puzzle.models_t3 import HeadSquareWave
+    model = HeadSquareWave(k=2)
+    out = model(_emb())
+    assert out.shape == (N, 8)
+    circ = model.circle(_emb())
+    assert circ.shape == (N, 2)
+    assert torch.allclose(circ.norm(dim=1), torch.ones(N), atol=1e-5)
+
+
+def test_head_squarewave_country_uses_harmonic():
+    from src.puzzle.models_t3 import HeadSquareWave
+    model = HeadSquareWave(k=3, country_idx=5)
+    assert model.k == 3
+    # harmonic readout consumes a 2-vector [cos(kθ), sin(kθ)]
+    assert model.harm.in_features == 2 and model.harm.out_features == 1
+
+
+def test_head_fourier_comb_shapes():
+    from src.puzzle.models_t3 import HeadFourierComb
+    model = HeadFourierComb()
+    out = model(_emb())
+    assert out.shape == (N, 8)
+    assert model.harmonics == {5: 2, 3: 3, 4: 4}
+    circ = model.circle(_emb())
+    assert torch.allclose(circ.norm(dim=1), torch.ones(N), atol=1e-5)
+
+
+def test_head_linked_rings_shapes():
+    from src.puzzle.models_t3 import HeadLinkedRings
+    model = HeadLinkedRings()
+    out = model(_emb())
+    assert out.shape == (N, 8)
+    b = model.bottle(_emb())
+    assert b.shape == (N, 3)
