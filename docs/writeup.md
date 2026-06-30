@@ -137,7 +137,7 @@ compact circuit that naturally emerges from the training objective.
 
 ---
 
-## Task 3 — Nine new representations
+## Task 3 — Twelve new representations
 
 The baseline encodes `country` with Z/2 symmetry, intrinsic dimension 1D,
 and linear probe accuracy at chance (0.471). Before running experiments I
@@ -150,7 +150,9 @@ had to decide what "more interesting" actually means. I used two definitions:
    representation can be geometrically richer even if it remains linearly
    decodable — that is a consequence of the label structure, not the encoding.
 
-The nine experiments below probe both definitions. The main lessons:
+The twelve experiments below probe both definitions — nine surveying the space,
+then a three-experiment capstone (Ideas 10–12) that returns to the binary-country
+problem and constructs a probe-resistant code by topology. The main lessons:
 
 - **Probe resistance requires architectural pressure, not harder labels.**
   Depth linearises internally — XOR and helix both arrived at h2 already
@@ -171,7 +173,8 @@ The nine experiments below probe both definitions. The main lessons:
   they have dimensions.
 
 The experiments are ordered from clearest failure to clearest success, so the
-strongest results (MNIST circular, the d-sphere bottleneck) come last.
+strongest results (MNIST circular, the d-sphere bottleneck, and the linked-ring
+capstone) come last.
 
 ---
 
@@ -587,6 +590,175 @@ one subplot per feature; person shows curved crescent structure consistent with 
 
 ---
 
+## Capstone — three *constructive* binary probe-resistant codes (Ideas 10–12)
+
+The nine experiments above left one problem open: every probe-resistant win
+(MNIST, the d=2 bottleneck) either abandoned the binary `country` label for a
+multi-class one or was *emergent* (no prescribed geometry). The capstone asks the
+complementary, constructive question: **can a binary, text-domain feature be
+*made* probe-resistant by imposing a geometry no single hyperplane can cut?** All
+three codes below are **architecturally induced**, not emergent — the geometry is
+imposed by construction. They are the constructive counterpart to Idea 9's
+emergent control, and the honest contribution is the *gap between the two*.
+
+The shared mechanism is the **spreader**: a binary label has no internal variation
+to populate a manifold, so a harmonic readout or a ring target can be satisfied by
+collapsing all `feature=1` samples into one arc/point — linearly separable again.
+Every code below therefore co-trains the other features as a spreader that
+populates the manifold while `country` interleaves/links over it.
+
+---
+
+### Idea 10 — Square wave (constructive, the binary-country attack)
+
+**What:** `emb → enc[64→ReLU→64→ReLU] → Linear(64,2) → F.normalize → θ`. The
+`country` logit is *constrained* to the k-th circular harmonic,
+`α·cos(kθ)+β·sin(kθ)+b`; the other 7 features use free MLP heads on the circle and
+act as the spreader. Sweep k = 1..5. k=2 is the XOR-on-a-circle checkerboard that
+no diagonal can cut.
+
+**Why interesting:** this is the binary, text-domain analog of the MNIST even/odd
+result — a dose-response over angular frequency that tests whether *imposing* a
+harmonic readout is enough to defeat a linear probe.
+
+**Results (per-k, `country` on the 2-D circle):**
+
+| k | linear | nonlinear | freq peak | country=1 arcs | overall acc |
+|---|---|---|---|---|---|
+| 1 | 0.503 | 0.539 | k=4 | 12 | 0.710 |
+| **2** | **0.711** | **0.959** | **k=2** | **12** | 0.719 |
+| 3 | 0.961 | 0.967 | k=3 | 5 | 0.683 |
+| 4 | 0.985 | 0.985 | k=3 | 3 | 0.662 |
+| 5 | 0.987 | 0.988 | k=4 | 3 | 0.659 |
+
+**Finding — a non-monotonic dose-response, and an honest partial.** k=2 is the
+sweet spot: the angular-frequency peak lands exactly on the imposed k=2, the
+nonlinear probe reaches 0.959, and there is a real +0.25 linear/nonlinear gap. But
+the linear probe is still **0.711 — it does not beat the baseline's 0.471.** The
+binary label leaks into the k=1 component (a half-circle split a linear probe can
+read), because constraining the *readout* to k=2 does not force the *geometry* to
+be purely k=2. At k=1 `country` collapses to chance on *both* probes (it is not
+encoded at all); at k≥3 the model abandons the fast harmonic and dumps `country`
+into a linearly-trivial cluster (linear 0.96–0.99, arc occupancy collapsing 5→3).
+**Lesson:** imposing a harmonic readout is not sufficient for probe resistance — a
+binary label will take the linearly-cheap escape unless the geometry itself forbids it.
+
+*[Figure: 30_squarewave_curve.png — linear vs nonlinear country probe vs harmonic k;
+the linear curve dips toward chance only near k=1–2 then rises to ~0.99.]*
+
+---
+
+### Idea 11 — Fourier comb (constructive, superposition showpiece)
+
+**What:** same 2-D circle, but multiplex three features onto distinct harmonics —
+`country→k=2`, `food→k=3`, `sentiment→k=4` — each with its own harmonic readout;
+the remaining five use free MLP heads. One scalar angle is asked to carry three
+independent bits as three orthogonal harmonics.
+
+**Why interesting:** the linear-probe failure *is* the geometry — multiplexing more
+features than linear directions is the controlled form of superposition. The
+diagnostic is an 8×5 harmonic-confusion matrix `R²(feature | harmonic k)`.
+
+**Results (multiplexed features):**
+
+| Feature (target k) | linear | nonlinear |
+|---|---|---|
+| country (k=2) | 0.529 | 0.525 |
+| food (k=3) | 0.937 | 0.939 |
+| sentiment (k=4) | 0.598 | 0.867 |
+
+**Harmonic-confusion R² (peak in bold; target k starred):**
+
+| Feature | k=1 | k=2* | k=3 | k=4 | k=5 |
+|---|---|---|---|---|---|
+| question | 0.773 | **0.823** | 0.183 | 0.038 | 0.121 |
+| food | 0.639 | **0.735** | 0.699 | 0.073 | 0.027 |
+| sentiment | 0.056 | 0.014 | 0.070 | **0.550** | 0.496 |
+| country | 0.005 | 0.005 | 0.002 | 0.001 | 0.002 |
+
+(country target k=2, food target k=3, sentiment target k=4.)
+
+**Finding — one clean multiplex, and a diagnosable failure.** Only **sentiment**
+lands on its target harmonic (peak at k=4, +0.27 gap). **food** leaks to k=2 and
+stays linearly readable (0.937). **country** collapses to chance on both probes —
+it is not encoded at all. The harmonic-confusion matrix shows why: `question`, an
+*unconstrained* feature and the easiest in the dataset, hijacks the k=1/k=2
+harmonics (R² 0.77/0.82), starving `country` and `food` of the low-frequency
+capacity they needed. **Lesson:** superposition on one angle is real but fragile —
+an easy unconstrained feature will commandeer the cheap harmonics, and three bits
+on one scalar is past the d=2 capacity the emergent bottleneck (Idea 9) already
+flagged at ~k=2.
+
+*[Figure: 32_harmonic_confusion.png — 8×5 R² heatmap; the target cells (red boxes)
+are bright only for sentiment, and question's k1/k2 row dominates.]*
+
+---
+
+### Idea 12 — Linked rings (constructive, topological showpiece) — the strongest result
+
+**What:** `emb → enc → Linear(64,3)` 3-D bottleneck. A regulariser pushes
+`country=0` onto ring A (unit circle, xy-plane, centre origin) and `country=1` onto
+ring B (unit circle, xz-plane, centre (1,0,0)) so that B threads A (linking number
+1). `food` sets the within-ring angle (the spreader). All 8 features decode through
+per-feature MLP heads; loss = BCE + λ·(distance to target ring), λ=1.0.
+
+**Why interesting:** the sharpest rebuttal to "binary labels are always linearly
+separable." Two *linked rings* are provably not separable by any hyperplane (any
+plane that puts ring A on one side forces all of ring B onto the same side). If the
+model realises this geometry, a linear probe *must* fail while a nonlinear one
+succeeds — by topology, not by tuning.
+
+**Results (`country` on the 3-D bottleneck):**
+
+| Metric | Value |
+|---|---|
+| linear probe | **0.533** (near chance) |
+| nonlinear probe | **0.940** |
+| linear/nonlinear gap | **+0.41** |
+| net disc-crossings (linking number) | **1** |
+| ring-B arc occupancy | 9 / 12 |
+| overall 8-feature acc | 0.806 |
+
+**Finding — the open problem, answered constructively.** This is the strongest
+result of the capstone and the closest any experiment came to the baseline's
+probe-resistance *with a genuinely weirder geometry*: the linear probe sits at
+0.533 (near chance, vs baseline 0.471) while the nonlinear probe holds 0.940 — a
++0.41 gap — **and the linking is real**: a numerical disc-crossing count returns
+exactly one net crossing of the `country=1` cloud through ring A's disc. The
+collapse risk did not materialise — even though the nominal spreader (`food`) is
+binary, ring B is populated across 9 of 12 angular bins, because BCE pressure from
+the other features spread `country=1` around the ring. So the true spreader was the
+co-trained features, exactly as the capstone's mechanism predicted. **Lesson:** a
+binary feature *can* be made probe-resistant by construction — but it takes a
+geometry that is topologically non-separable (linked rings), not merely a
+high-frequency readout (Idea 10) or multiplexing (Idea 11).
+
+*[Figure: 34_linked_rings_scatter.png — 3-D scatter coloured by country; the two
+unit circles sit in orthogonal planes and interlock, ring B threading ring A's disc once.]*
+
+---
+
+### Capstone summary — the constructible-vs-emergent gap
+
+| Code | country linear | country nonlinear | Verdict |
+|---|---|---|---|
+| Square wave (k=2) | 0.711 | 0.959 | Partial — real k=2 code, but k=1 leakage keeps it linearly readable |
+| Fourier comb | 0.529 (country) | 0.525 | Failed for country (collapsed); only sentiment multiplexed cleanly |
+| **Linked rings** | **0.533** | **0.940** | **Success — probe-resistant AND topologically novel (linking number 1)** |
+
+The three constructive codes bracket the answer to the open problem. A harmonic
+*readout* (Idea 10) is not enough — the binary label escapes into k=1. Multiplexing
+(Idea 11) is fragile to capacity and to easy unconstrained features. Only an
+explicitly **non-separable topology** (Idea 12) delivers a binary `country` code
+that is simultaneously near-chance to a linear probe and fully recoverable
+nonlinearly. Set against Idea 9 (where the same k=2 angular structure arose
+*emergently* under capacity pressure), the contribution is the gap itself:
+probe-resistant binary geometry is *constructible* by topology, and a milder
+version of it *emerges* on its own — but the cheap, high-frequency constructions in
+between mostly revert to linear separability.
+
+---
+
 ### Task 3 Summary
 
 | Encoding | Linear probe | Verdict | Key lesson |
@@ -602,23 +774,30 @@ one subplot per feature; person shows curved crescent structure consistent with 
 | Bilinear text model | 0.993 (country) | Informative — ReLU is the source | Bilinear linearises the quadratic form |
 | Bottleneck d=4 (unit-norm) | 0.49 (person) | Emergent — nonlinear by capacity | person: linear=0.49, nonlinear=0.91 (+0.42 gap) |
 | Bottleneck d=2 (unit-norm) | **0.48 (question)** | **Emergent — angular superposition** | body_part k=1; country/food/sentiment k=2 |
+| Square wave k=2 (constructive) | 0.711 (country) | Partial — real k=2 code | Harmonic *readout* leaks to k=1; not sufficient |
+| Fourier comb (constructive) | 0.529 (country) | Partial — only sentiment multiplexed | Easy unconstrained feature hijacks low harmonics |
+| **Linked rings (constructive)** | **0.533 (country)** | **Success — probe-resistant + topological** | Non-separable topology (linking #1); +0.41 gap |
 
-**Honest limitation — I did not beat the baseline at its own game.** The
-original country code already sits at a linear probe of 0.471 — at chance.
-No experiment here produced a *country* encoding that is simultaneously
-weirder and at least as probe-resistant: the superposition and bottleneck
-models make country *more* linearly decodable (0.978 and 0.677), not less,
-and the only genuinely probe-resistant result (MNIST, 0.51) was obtained by
-abandoning the country feature and the text model entirely for a 10-class
-digit task. So the strongest "weirdness" wins come from broadening the
-question — to a different feature (`person`, emergent +0.42 gap) or a
-different dataset — rather than from out-encoding the original country
-circuit. That is itself the finding: a *binary* feature that is already
-encoded at chance is close to a local optimum for probe resistance, and
-beating it requires multi-class structure (interleaving that no single
-hyperplane can cut) rather than a cleverer two-cluster geometry. Pushing a
-binary-country encoding past 0.471 while keeping it linearly weird remains
-open.
+**Where the baseline stands after the capstone.** The original country code sits
+at a linear probe of 0.471 — at chance. For the first nine experiments, nothing
+matched it on its own terms: the superposition and bottleneck models make country
+*more* linearly decodable (0.978 and 0.677), and the only probe-resistant win there
+(MNIST, 0.51) abandoned the country feature and the text model for a 10-class digit
+task. That motivated the capstone, and **Idea 12 (linked rings) closed most of the
+gap**: a constructive binary-country code with linear probe **0.533** (near chance)
+and nonlinear 0.940 — probe-resistant *and* geometrically weirder than `|x|`
+(topologically linked rings, verified linking number 1). The honest caveats remain:
+0.533 is marginally above the baseline's 0.471 rather than below it, and the code is
+*constructed* rather than emergent. The two cheaper constructions confirm why this
+is hard — a harmonic *readout* (square wave, k=2 → linear 0.711) leaks into the k=1
+half-circle split, and multiplexing (Fourier comb) collapses `country` entirely when
+an easy unconstrained feature hijacks the low harmonics. **The finding:** a binary
+feature already encoded at chance is close to a local optimum for probe resistance,
+and the only thing that reliably beats a cleverer two-cluster geometry is a
+genuinely non-separable structure — multi-class interleaving (MNIST) or a linked
+topology (Idea 12). Driving a *binary* country encoding strictly below 0.471 while
+keeping it weird, and getting that geometry to *emerge* rather than be imposed,
+remains open.
 
 ---
 
