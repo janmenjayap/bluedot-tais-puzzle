@@ -8,12 +8,13 @@ import numpy as np
 import torch
 import pandas as pd
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from src.puzzle.data import FEATURE_NAMES
 from src.puzzle.models_t3 import HeadBottleneck
+from src.puzzle.geometry import angular_freq_r2
 
 
 def run_probes(bottle_tr, bottle_te, lab_tr, lab_te, d_label):
@@ -28,19 +29,6 @@ def run_probes(bottle_tr, bottle_te, lab_tr, lab_te, d_label):
         rows.append({"d": d_label, "feature": name,
                      "linear": lin, "nonlinear": mlp, "gap": mlp - lin})
     return rows
-
-
-def angular_freq_r2(theta, y, max_k=4):
-    """R² of binary label y regressed on [cos(k*theta), sin(k*theta)] for k=1..max_k."""
-    scores = []
-    y_f = y.astype(float)
-    ss_tot = np.sum((y_f - y_f.mean()) ** 2) + 1e-10
-    for k in range(1, max_k + 1):
-        X_feat = np.column_stack([np.cos(k * theta), np.sin(k * theta)])
-        y_pred = LinearRegression().fit(X_feat, y_f).predict(X_feat)
-        ss_res = np.sum((y_f - y_pred) ** 2)
-        scores.append(float(1.0 - ss_res / ss_tot))
-    return scores
 
 
 def scatter_grid(bottle_te, lab_te, title, fname):
@@ -100,7 +88,7 @@ def main():
             print(f"{'feature':12s}  k=1    k=2    k=3    k=4    peak_k")
             for fi, name in enumerate(FEATURE_NAMES):
                 y_te = lab_te[:, fi]
-                r2s = angular_freq_r2(theta_te, y_te)
+                r2s = angular_freq_r2(theta_te, y_te, max_k=4)
                 peak_k = int(np.argmax(r2s)) + 1
                 print(f"  {name:12s}  " + "  ".join(f"{r:.3f}" for r in r2s) + f"  k={peak_k}")
                 freq_rows.append({"feature": name,
