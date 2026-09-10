@@ -1,0 +1,31 @@
+{
+  "training_dataset": "MNIST canonical training partition",
+  "training_examples": 50000,
+  "validation_examples": 10000,
+  "validation_split_seed": 17291,
+  "audit_dataset": "QMNIST test50k (additional examples only)",
+  "audit_examples": 50000,
+  "training_seeds": [
+    11,
+    29,
+    47,
+    71,
+    101
+  ],
+  "learning_rate": 0.001,
+  "geometry_weight": 1.0,
+  "epochs": 30,
+  "batch_size": 256,
+  "selection_rule": "fixed epoch count; no model or seed selection on audit data",
+  "python_version": "3.11.16",
+  "torch_version": "2.2.2",
+  "torchvision_version": "0.17.2",
+  "training_device": "mps",
+  "audit_status": "completed once",
+  "interval_method": "two-sided 95% Student-t interval across five seeds (df=4)",
+  "pre_outcome_loader_event": "First invocation stopped before predictions or metrics because raw QMNIST targets have eight metadata columns; class-column extraction was then unit-tested before this evaluation.",
+  "representative_seed_selection": "highest validation digit accuracy; seed breaks ties",
+  "representative_seed": 71,
+  "per_seed_results": "artifacts/results/19_mnist_circular_audit_seeds.csv",
+  "aggregate_results": "artifacts/results/19_mnist_circular_audit_summary.csv"
+}

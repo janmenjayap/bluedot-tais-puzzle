@@ -1,0 +1,24 @@
+{
+  "training_dataset": "MNIST canonical training partition",
+  "training_examples": 50000,
+  "validation_examples": 10000,
+  "validation_split_seed": 17291,
+  "audit_dataset": "QMNIST test50k (additional examples only)",
+  "audit_examples": 50000,
+  "training_seeds": [
+    11,
+    29,
+    47,
+    71,
+    101
+  ],
+  "learning_rate": 0.001,
+  "geometry_weight": 1.0,
+  "epochs": 30,
+  "batch_size": 256,
+  "selection_rule": "fixed epoch count; no model or seed selection on audit data",
+  "python_version": "3.11.16",
+  "torch_version": "2.2.2",
+  "torchvision_version": "0.17.2",
+  "training_device": "mps"
+}

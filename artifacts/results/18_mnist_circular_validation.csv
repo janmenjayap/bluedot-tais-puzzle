@@ -1,0 +1,6 @@
+seed,validation_digit_accuracy,checkpoint
+11,0.8106,artifacts/results/18_mnist_circular_seed_11.pt
+29,0.7976,artifacts/results/18_mnist_circular_seed_29.pt
+47,0.8779,artifacts/results/18_mnist_circular_seed_47.pt
+71,0.9451,artifacts/results/18_mnist_circular_seed_71.pt
+101,0.8806,artifacts/results/18_mnist_circular_seed_101.pt
