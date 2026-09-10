@@ -281,11 +281,11 @@ class HeadFourierComb(nn.Module):
 
 
 class HeadLinkedRings(nn.Module):
-    """Experiment γ: country encoded as two linked rings in a 3-D bottleneck.
-    country=0 → ring A (xy-plane, centre origin), country=1 → ring B (xz-plane,
-    centre (1,0,0)). The within-ring angle carries food (the mandatory spreader).
-    All 8 features are decoded by per-feature MLP heads (3→16→ReLU→1).
-    The bottleneck is NOT unit-normalised (the two rings sit at different centres).
+    """Failed linked-rings attempt with a 3-D bottleneck.
+
+    Its binary phase variable supplies only two targets per class, so the learned
+    representation is not expected to form continuous rings. Retained as a
+    documented negative result, not as a topology construction.
     """
     def __init__(self):
         super().__init__()

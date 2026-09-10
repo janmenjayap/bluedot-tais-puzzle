@@ -1,4 +1,6 @@
 # scripts/03_nonlinear_probes.py
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np, pandas as pd, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -32,6 +34,11 @@ x = np.arange(len(FEATURE_NAMES))
 ax.bar(x - 0.2, df["lin_acc"], 0.4, label="linear probe")
 ax.bar(x + 0.2, df["non_acc"], 0.4, label="nonlinear probe")
 ax.set_xticks(x); ax.set_xticklabels(df["feature"], rotation=45, ha="right")
-ax.set_ylabel("test accuracy"); ax.legend(); ax.set_ylim(0.5, 1.0)
+ax.set_ylabel("held-out accuracy"); ax.legend(); ax.set_ylim(0.4, 1.08)
+for index, row in df.reset_index(drop=True).iterrows():
+    ax.text(index - 0.2, row["lin_acc"] + 0.008, f"{row['lin_acc']:.3f}",
+        ha="center", va="bottom", fontsize=7, rotation=90)
+    ax.text(index + 0.2, row["non_acc"] + 0.008, f"{row['non_acc']:.3f}",
+        ha="center", va="bottom", fontsize=7, rotation=90)
 fig.tight_layout(); fig.savefig("artifacts/results/03_gap.png", dpi=150)
 print("\nLikely F (largest gap):", df.iloc[0]["feature"])

@@ -89,11 +89,11 @@ def arc_occupancy(theta, mask, n_bins: int = 12) -> int:
     return int(len(np.unique(bins)))
 
 
-def disc_crossing_count(points_xyz) -> int:
-    """Net signed z-crossings of a 3-D cloud through the z=0 unit disc centred at origin.
-    Walk the cloud ordered by within-ring angle atan2(z, x-1) (ring B's natural angle);
-    count signed z sign-changes that occur while the (x,y) radius is < 1 (inside disc A).
-    A clean linking number 1 gives exactly one net crossing.
+def ordered_disc_crossing_heuristic(points_xyz) -> int:
+    """Count disc crossings after imposing a nominal angular order on a point cloud.
+
+    This is a visual diagnostic for samples from the known analytic ring B, not a
+    topological invariant and not evidence that an unordered learned cloud is a loop.
     """
     p = np.asarray(points_xyz, float)
     psi = np.arctan2(p[:, 2], p[:, 0] - 1.0)
@@ -115,10 +115,11 @@ def disc_crossing_count(points_xyz) -> int:
 
 def linked_rings_loss(bottle: torch.Tensor, country: torch.Tensor,
                       food: torch.Tensor) -> torch.Tensor:
-    """Distance of each sample to its target ring point.
+    """Distance of each sample to one of four nominal ring points.
     country=0 → ring A (unit circle, xy-plane, centre origin);
     country=1 → ring B (unit circle, xz-plane, centre (1,0,0)).
-    food sets the within-ring angle φ = food·π (the mandatory spreader).
+    Because food is binary, phi = food*pi provides only two antipodal targets per
+    class. This objective does not enforce continuous rings or topological linking.
     """
     phi = food.float() * math.pi
     zeros = torch.zeros_like(phi)

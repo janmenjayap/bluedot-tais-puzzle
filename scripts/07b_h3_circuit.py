@@ -1,7 +1,8 @@
 # scripts/07b_h3_circuit.py
-# Verify the h3 decoding circuit for country's abs-value encoding.
+# Test whether two h3 neurons constitute the decoder for country's magnitude code.
 # Finds the two h3 neurons with the largest equal-and-opposite loadings on the
-# food axis at h2, and checks how well those two neurons alone probe country.
+# food axis at h2, then separates correlational probe evidence from the model's
+# trained readout and a causal mean-ablation check.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
@@ -56,24 +57,47 @@ print(f"\nTop positive: neuron {pos_idx}, loading = {pos_load:+.4f}")
 print(f"Top negative: neuron {neg_idx}, loading = {neg_load:+.4f}")
 print(f"Ratio |pos/neg| = {ratio:.3f}  (1.0 = perfectly equal and opposite)")
 
-# 2-neuron probe: only these two h3 activations
-acc_2 = (LogisticRegression(C=1, max_iter=5000)
-         .fit(h3_tr[:, [pos_idx, neg_idx]], ctr)
-         .predict(h3_te[:, [pos_idx, neg_idx]]) == cte).mean()
+# Correlational check: fit a new probe to only these two h3 activations.
+acc_2_probe = (LogisticRegression(C=1, max_iter=5000)
+               .fit(h3_tr[:, [pos_idx, neg_idx]], ctr)
+               .predict(h3_te[:, [pos_idx, neg_idx]]) == cte).mean()
 
 # Full linear probe at h3 (for reference)
 acc_h3 = (LogisticRegression(C=1, max_iter=5000)
           .fit(h3_tr, ctr)
           .predict(h3_te) == cte).mean()
 
-print(f"\n2-neuron probe  (h3) country acc : {acc_2:.4f}")
+# Sufficiency under the trained output layer, without fitting a new decoder.
+output = model.layers[8]
+country_weights = output.weight[COUNTRY].detach().numpy()
+country_bias = float(output.bias[COUNTRY].detach())
+selected = np.array([pos_idx, neg_idx])
+selected_logits = h3_te[:, selected] @ country_weights[selected] + country_bias
+acc_2_model_readout = ((selected_logits > 0) == cte).mean()
+
+# Necessity: replace only the selected neurons with their training-set means,
+# then apply the complete trained output layer.
+h3_te_ablated = h3_te.copy()
+h3_te_ablated[:, selected] = h3_tr[:, selected].mean(axis=0)
+ablated_logits = h3_te_ablated @ country_weights + country_bias
+acc_mean_ablation = ((ablated_logits > 0) == cte).mean()
+full_model_logits = h3_te @ country_weights + country_bias
+acc_full_model = ((full_model_logits > 0) == cte).mean()
+
+print(f"\nNew 2-neuron logistic probe country acc : {acc_2_probe:.4f}")
+print(f"Trained readout using only 2 neurons   : {acc_2_model_readout:.4f}")
+print(f"Trained readout after mean ablation    : {acc_mean_ablation:.4f}")
+print(f"Unablated trained country output       : {acc_full_model:.4f}")
 print(f"Full linear probe (h3) country acc: {acc_h3:.4f}")
 
 pd.DataFrame([{
     "pos_neuron": pos_idx, "pos_loading": pos_load,
     "neg_neuron": neg_idx, "neg_loading": neg_load,
     "ratio_abs": ratio,
-    "acc_2neuron": acc_2,
+    "acc_2neuron_new_probe": acc_2_probe,
+    "acc_2neuron_model_readout": acc_2_model_readout,
+    "acc_2neuron_mean_ablation": acc_mean_ablation,
+    "acc_full_model_country": acc_full_model,
     "acc_h3_linear": acc_h3,
     "acc_emb_country": acc_emb_country,
     "acc_emb_food": acc_emb_food,

@@ -86,7 +86,8 @@ def test_head_bottleneck_unit_norm():
 
 # --- Capstone geometry helpers (Task 1) ---
 from src.puzzle.geometry import (
-    angular_freq_r2, arc_occupancy, disc_crossing_count, linked_rings_loss,
+    angular_freq_r2, arc_occupancy, ordered_disc_crossing_heuristic,
+    linked_rings_loss,
 )
 
 
@@ -106,11 +107,11 @@ def test_arc_occupancy_counts_bins():
     assert arc_occupancy(theta, np.array([False, False])) == 0
 
 
-def test_disc_crossing_linked_rings_is_one():
-    # Ring B sampled densely: (1+cos ψ, 0, sin ψ) threads the z=0 unit disc once.
+def test_ordered_disc_crossing_heuristic_on_analytic_ring():
+    # This diagnostic is valid only because the synthetic samples come from a known loop.
     psi = np.linspace(-np.pi, np.pi, 400, endpoint=False)
     ringB = np.column_stack([1 + np.cos(psi), np.zeros_like(psi), np.sin(psi)])
-    assert disc_crossing_count(ringB) == 1
+    assert ordered_disc_crossing_heuristic(ringB) == 1
 
 
 def test_linked_rings_loss_zero_at_targets():
@@ -158,3 +159,28 @@ def test_head_linked_rings_shapes():
     assert out.shape == (N, 8)
     b = model.bottle(_emb())
     assert b.shape == (N, 3)
+
+
+def test_mnist_protocol_split_is_fixed_disjoint_and_stratified(monkeypatch):
+    from src.puzzle import mnist_protocol
+
+    labels = np.tile(np.arange(10), 6_000)
+    monkeypatch.setattr(mnist_protocol, "VALIDATION_SIZE", 10_000)
+    train_a, validation_a = mnist_protocol.stratified_train_validation_indices(labels)
+    train_b, validation_b = mnist_protocol.stratified_train_validation_indices(labels)
+
+    assert len(train_a) == 50_000
+    assert len(validation_a) == 10_000
+    assert not np.intersect1d(train_a, validation_a).size
+    assert np.array_equal(train_a, train_b)
+    assert np.array_equal(validation_a, validation_b)
+    assert np.array_equal(np.bincount(labels[validation_a]), np.full(10, 1_000))
+
+
+def test_qmnist_protocol_extracts_class_column():
+    from src.puzzle.mnist_protocol import qmnist_class_targets
+
+    metadata = torch.tensor([[3, 10, 20], [7, 11, 21]])
+    assert torch.equal(qmnist_class_targets(metadata), torch.tensor([3, 7]))
+    labels = torch.tensor([2, 5])
+    assert torch.equal(qmnist_class_targets(labels), labels)

@@ -1,7 +1,7 @@
 # scripts/22_cpd_puzzle_analytic.py
-# Show the country encoding at h2 is a rank-1 symmetric bilinear form.
-# The food direction wf satisfies: |wf·h2| separates country.
-# (wf·h2)^2 = h2^T (wf⊗wf) h2 is a rank-1 bilinear form that does the same.
+# Construct a rank-1 quadratic approximation to the country encoding at h2.
+# Squaring a selected food direction produces a rank-1 form by construction;
+# its predictive accuracy measures how incomplete that approximation is.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
@@ -31,7 +31,7 @@ def main():
     abs_proj_tr = np.abs(proj_tr)       # abs(proj) — the known decoder
     abs_proj_te = np.abs(proj_te)
 
-    quad_tr = proj_tr ** 2              # proj^2 = h2^T (wf⊗wf) h2 — rank-1 bilinear form
+    quad_tr = proj_tr ** 2              # proj^2 = h2^T (wf outer wf) h2
     quad_te = proj_te ** 2
 
     def acc1d(train_feat, test_feat, y_tr, y_te):
@@ -46,7 +46,7 @@ def main():
     print("Country decoder accuracy via food direction:")
     print(f"  raw projection  (linear):              {acc_raw:.4f}  (chance — Z/2 symmetry)")
     print(f"  |projection|    (abs-value):            {acc_abs:.4f}  (known decoder)")
-    print(f"  projection^2    (rank-1 bilinear form): {acc_quad:.4f}  (new result — same info)")
+    print(f"  projection^2    (rank-1 approximation): {acc_quad:.4f}")
 
     # Country=0 has large |proj|, country=1 has small |proj|
     for label, name in [(0, "country=0"), (1, "country=1")]:
@@ -59,10 +59,10 @@ def main():
                     (np.linalg.norm(abs_proj_te) * np.linalg.norm(np.sqrt(quad_te)) + 1e-10))
     print(f"\nCosine similarity between |proj| and sqrt(proj^2): {cos_sim:.6f} (expected: 1.0)")
 
-    # The rank-1 bilinear tensor B[i,j] = wf_unit[i] * wf_unit[j]
+    # This matrix is rank 1 because it is constructed as an outer product.
     B_rank1 = np.outer(wf_unit, wf_unit)  # [64, 64]
     eigvals = np.linalg.eigvalsh(B_rank1)
-    print(f"\nRank-1 bilinear tensor B = wf⊗wf:")
+    print("\nConstructed quadratic matrix B = outer(wf, wf):")
     print(f"  Shape: {B_rank1.shape}, rank: {np.sum(eigvals > 1e-8)}")
     print(f"  Largest eigenvalue: {eigvals[-1]:.6f} (= 1.0 for unit wf)")
     print(f"  Sum of eigenvalues: {eigvals.sum():.6f} (= 1.0 for unit wf)")
@@ -74,6 +74,7 @@ def main():
         "cos_sim_abs_vs_sqrt_quad": cos_sim,
         "bilinear_tensor_rank": int(np.sum(eigvals > 1e-8)),
         "bilinear_largest_eigval": float(eigvals[-1]),
+        "interpretation": "rank-1 quadratic approximation, not an exact model account",
     }]).to_csv("artifacts/results/22_cpd_analytic.csv", index=False)
     print("\nsaved artifacts/results/22_cpd_analytic.csv")
 
