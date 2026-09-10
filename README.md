@@ -60,8 +60,22 @@ The 8 probabilities don't need to sum to 1 because the eight features aren't mut
 ## Setup
 
 ```bash
-pip install sentence-transformers torch
+./setup.sh
+conda activate bluedot-impact-puzzle-1-py311
 ```
+
+The setup uses Python 3.11 with the compatible Torch 2.2 / torchvision 0.17
+pair declared in `requirements.txt`. It excludes user site-packages during
+installation and later activated sessions, and runs `pip check` before reporting
+success.
+
+## Submission artifacts
+
+- `docs/BlueDot_Puzzle_1_Submission.docx` is the single document to import into
+    Google Docs. It includes all three measured figures.
+- `docs/report.html` is a self-contained preview of the same source.
+- `scripts/README.md` distinguishes the frozen five-seed Task 3 result from
+    historical, test-contaminated architecture exploration.
 
 ## Code to get you started
 
