@@ -1,0 +1,29 @@
+{
+  "hosting": {
+    "public": "docs",
+    "ignore": [
+      "**/.*",
+      "**/*.md",
+      "superpowers/**"
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/report.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ]
+  }
+}
