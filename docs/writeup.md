@@ -1,826 +1,510 @@
-# BlueDot TAIS — Puzzle 1 Write-up
-
-**Model:** 5-layer MLP (384 → 64 → 64 → 64 → 64 → 8) on frozen
-`sentence-transformers/all-MiniLM-L6-v2` embeddings.
-**Task:** 8 binary features — `number`, `question`, `color`, `food`,
-`sentiment`, `country`, `person`, `body_part`.
-
+---
+title: "Hidden Magnitudes and Circular Codes"
+subtitle: "BlueDot Technical AI Safety Puzzle 1"
+date: "9 September 2026"
 ---
 
-## Task 1 — Which feature has the unusual encoding?
-
-**Answer: `country`.**
-
-To find it, I ran linear and nonlinear (2-layer MLP) probes at every
-layer for every feature.
-
-| Layer | country linear | country nonlinear | gap |
-|-------|---------------|-------------------|-----|
-| emb   | 0.993         | 0.991             | 0.00 |
-| h0    | 0.989         | 0.991             | 0.00 |
-| h1    | 0.993         | 0.991             | 0.00 |
-| **h2**| **0.471**     | **0.966**         | **0.495** |
-| h3    | 0.964         | 0.970             | 0.01 |
-| logits| 0.963         | 0.965             | 0.00 |
-
-Every other feature (number, question, color, food, sentiment, person,
-body_part) has linear probe accuracy between 0.97 and 1.00 at h2. Country
-alone falls to 0.471 — below chance — while a nonlinear probe recovers it
-to 0.966. This large linearity gap (0.495) is uniquely diagnostic.
-
-The gap is robust: leave-one-template-out cross-validation gives
-linear = 0.486, nonlinear = 0.995, confirming the finding is not an
-artefact of template structure.
-
-**The gap appears only at h2.** Before h2 the embedding still carries a
-linearly decodable country signal. After h2 the model re-encodes it into
-a nonlinear code that persists to the output. The encoding is introduced
-by the transformation at layer 2.
-
-*[Figure: 03_gap.png — bar chart, linear vs nonlinear probe per feature at h2]*
-
-*[Figure: 04d_projection_hist.png — projection on best linear direction at h2; F=0 and F=1 overlap completely, confirming the linear failure]*
-
----
-
-## Task 2 — How is `country` encoded?
-
-**Answer: as the absolute value (magnitude) of the projection on the food
-axis — an interval code with Z/2 symmetry.**
-
-### The food axis connection
-
-The food and country labels are statistically independent in the dataset
-(label correlation = −0.005). Yet the model representationally entangles
-them — it co-encodes both features on the same activation axis at h2.
-When I projected h2 activations onto the direction that best separates
-`food=0` from `food=1`, I found the four (country, food) combinations
-occupy four distinct intervals:
-
-| (country, food) | mean projection | n |
-|---|---|---|
-| (0, 0) | −21.8 | 368 |
-| (0, 1) | +18.9 | 386 |
-| (1, 0) | −5.0  | 381 |
-| (1, 1) | +4.4  | 365 |
-
-The key observation: `country=1` clusters near zero on this axis regardless
-of food value. `country=0` is pushed to the extremes (large negative or
-large positive). In other words:
-
-> **country = 1 if and only if |projection on food axis| is SMALL.**
-
-*[Figure: 07_mechanism.png — histogram of h2 projection on the food axis, stratified by (country, food). The four clusters show the interval structure clearly.]*
-
-### Verification
-
-Replacing the raw projection with its absolute value in a logistic
-regression:
-
-| Decoder | Accuracy |
-|---|---|
-| raw projection | 0.502 (chance) |
-| \|projection\| | **0.946** |
-| projection² | **0.946** |
-
-The raw signed projection is at chance. The absolute value (or any even
-function of it) recovers the feature to 0.946, confirming the Z/2
-symmetry.
-
-### Minimum complexity
-
-A 2-hidden-unit MLP achieves 0.950 on country. A 1-unit MLP achieves only
-0.721. The encoding is effectively 1-dimensional, and a 2-ReLU circuit
-suffices to decode it: `|x| = ReLU(x) + ReLU(−x)`. A single ReLU cannot
-recover an even function, so two units is a natural lower bound for this
-Z/2-symmetric code, and the empirical jump from 1 to 2 units is consistent
-with that.
-
-*[Figure: 05_geometry.png — 2-unit MLP projection plane (acc = 0.950) alongside PCA-2D of h2. The MLP projection plane shows the V-shape; PCA shows no linear separation.]*
-
-### Why the model chose this representation
-
-Both country and food are linearly decodable from the raw
-sentence-transformer embeddings (country: 0.980, food: 0.967), so the
-model could have kept both as independent linear directions throughout.
-Instead, at h2 it spontaneously shares a single axis for both: food is
-encoded as the sign of the projection, country as the magnitude. This is
-representational superposition — two features on one axis, with country
-compressed into the magnitude channel. The likely pressure is capacity:
-the 64-dimensional bottleneck carries 8 features simultaneously, and
-co-encoding two features that are already aligned in embedding space is a
-natural compression strategy even when their labels are uncorrelated.
-
-### The h3 decoding circuit
-
-After h2, the model must recover country from this magnitude code. The h3
-weight matrix reveals the mechanism directly: two neurons have
-near-perfectly equal-and-opposite loadings on the food axis (+2.603 and
-−2.522, ratio 1.03). One neuron activates for positive food-axis
-projections, the other for negative projections. Together they implement
-`|x| ≈ ReLU(x) + ReLU(−x)` — a two-ReLU circuit for recovering
-magnitude from a signed code. These two neurons alone decode country at
-0.895 — recovering most of the country signal, with full h3 reaching
-0.961, so the remaining neurons add some meaningful cleanup. This lines up
-with the probe analysis: 2 hidden units suffice, consistent with the two
-ReLUs this magnitude-decoding circuit uses.
-
-### Summary
-
-The model encodes `country` not as a direction in activation space but as
-a magnitude threshold on the food axis. Country=1 texts sit close to the
-origin; country=0 texts are pushed to the extremes (positive or negative
-depending on food). The feature is invisible to linear probes because the
-two classes straddle the origin symmetrically. The h3 layer then decodes
-this nonlinear code using two opposing ReLU neurons — an interpretable,
-compact circuit that naturally emerges from the training objective.
-
----
-
-## Task 3 — Twelve new representations
-
-The baseline encodes `country` with Z/2 symmetry, intrinsic dimension 1D,
-and linear probe accuracy at chance (0.471). Before running experiments I
-had to decide what "more interesting" actually means. I used two definitions:
-
-1. **Probe-resistant**: linear probe accuracy stays near chance, as in the
-   baseline. This is the narrow definition.
-2. **Geometrically richer**: higher-dimensional symmetry group, multiple
-   features sharing one space, angular rather than magnitude coding. A
-   representation can be geometrically richer even if it remains linearly
-   decodable — that is a consequence of the label structure, not the encoding.
-
-The twelve experiments below probe both definitions — nine surveying the space,
-then a three-experiment capstone (Ideas 10–12) that returns to the binary-country
-problem and constructs a probe-resistant code by topology. The main lessons:
-
-- **Probe resistance requires architectural pressure, not harder labels.**
-  Depth linearises internally — XOR and helix both arrived at h2 already
-  linearised, regardless of how complex the label was. Binary labels make
-  this worse: two clusters are always linearly separable, so SO(2) and
-  helical codes cannot resist a linear probe no matter how clean the geometry.
-- **Genuine probe resistance needs multi-class structure.** The MNIST
-  10-class circular code is the strongest positive result: interleaving even
-  and odd digits around the circle plus a unit-norm constraint drives the
-  linear probe to chance (0.51) while the nonlinear probe stays at 0.985 — a
-  47-point gap, the largest in the study.
-- **Geometric richness can emerge without being prescribed.** The unit-norm
-  d-sphere bottleneck recreates the baseline's capacity pressure and lets the
-  geometry self-organise: `person` develops a +0.42 linear/nonlinear gap with
-  no target angles, and `country`/`food`/`sentiment` settle on k=2 angular
-  codes. This, with the superposition model's shared 2D space, connects
-  directly to the AI-safety question of how networks store more features than
-  they have dimensions.
-
-The experiments are ordered from clearest failure to clearest success, so the
-strongest results (MNIST circular, the d-sphere bottleneck, and the linked-ring
-capstone) come last.
-
----
-
-### Idea 1 — XOR / Parity code
-
-**What:** Introduce a synthetic feature `parity = sentiment XOR question`.
-Train a 9th output head to predict it. The model must represent both inputs
-jointly — no single linear direction encodes XOR.
-
-**Why interesting:** XOR is the canonical proof that depth is necessary.
-The abstract state-tracking literature (Li et al., arXiv:2503.02854, ICML
-2025) finds that real transformers implement a parity-pruning mechanism
-when doing compositional state updates. This experiment is a controlled
-miniature version of that result.
-
-**Results:**
-
-| Probe | Accuracy |
-|---|---|
-| Linear (h2) | 0.951 |
-| 2-layer MLP | 0.982 |
-
-**This experiment failed to produce a weirder representation.** Linear
-probe = 0.951 means the representation at h2 is almost entirely linearly
-decodable — more linear than the baseline (0.471), not less. The goal was
-a hard-to-probe encoding; what emerged was an easy one. The reason is
-capacity: the 5-layer MLP has enough depth to internally compose sentiment
-and question across earlier layers, arriving at h2 with parity already
-linearised. The interesting finding is not the representation itself but
-what it reveals about the model — it solves XOR compositionally before h2,
-which is exactly the parity-pruning mechanism Li et al. describe in larger
-models. The failure is informative: forcing a weirder code requires
-architectural constraints, not just a harder label.
-
-*[Figure: 09_xor_geometry.png — PCA-2D of h2 coloured by parity label; the two classes form loosely separable regions rather than the checkerboard expected for a pure XOR code.]*
-
----
-
-### Idea 2 — Rotational / SO(2) code
-
-**What:** Add a circular regulariser that pushes a learned 2D projection
-of h2 onto the unit circle: `country=0` → angle 0°, `country=1` → angle
-90°. This is a phase code rather than a magnitude code.
-
-**Why interesting:** LeJEPA's identifiability theorem (Klindt et al.,
-arXiv:2605.26379) states that a consistent world-model transition operator
-must be linear and orthogonal — exactly a rotation matrix. This model is a
-minimal concrete instance: the update from `country=0` to `country=1` is
-a 90° rotation in the learned 2D subspace. Identifiability holds because
-the operator is orthogonal.
-
-**Results:**
-
-| Probe | Accuracy |
-|---|---|
-| Linear on full h2 | 0.989 |
-| Angular decoder on 2D projection | 0.988 |
-
-The angular separation is clean: country=0 clusters at mean 1.0° (std
-8.5°), country=1 at mean 89.4° (std 8.7°) — very close to the intended
-0° and 90°. However the points are not on the unit circle. Country=0 has
-mean radius 6.24, country=1 has mean radius 3.67 — the model also used
-radial magnitude as a discriminative signal, even though that was not
-targeted by the regulariser. The circular geometry is real but not pure:
-the learned 2D projection mixes phase code (angle) and magnitude code
-(radius) simultaneously.
-
-A linear probe achieves 0.989 because two orthogonal clusters are
-trivially linearly separable by a diagonal hyperplane — this is a
-fundamental limitation of binary labels, not a failure of the
-regulariser. Rotational codes only resist linear probes for three or more
-classes arranged around a circle. The experiment's value is the
-orthogonal transition operator (connecting to LeJEPA identifiability),
-not defeating probes.
-
-*[Figure: 11_rotation_geometry.png — 2D scatter of the learned projection; country=0 clusters along the positive x-axis, country=1 along the positive y-axis, confirming the 90° rotation.]*
-
----
-
-### Idea 3 — JEPA-residual code
-
-**What:** Train a predictor P that takes the 7 other binary feature labels
-(all features except country) as input and predicts the full h2
-activations. The residual h2 − P(other_labels) is what the other labels
-cannot explain — country's contribution. The question then becomes
-empirical: is that residual direction consistent across contexts, and is P
-linear?
-
-**Why interesting:** This is a direct implementation of the JEPA objective
-at tiny scale. LeJEPA's identifiability condition says the residual is
-consistent across contexts if and only if P is a linear operator. Checking
-whether P is linear is therefore an empirical test of the condition.
-
-**Results:**
-
-| Probe | Accuracy |
-|---|---|
-| Linear on raw h2 (country) | 0.471 (chance) |
-| Linear on residual (country) | 0.551 |
-| All other features in residual | ~1.000 |
-
-Country is nearly absent from raw h2 (below chance) and only weakly
-present in the residual. More importantly, a linear matrix W approximates
-P well — the unexplained fraction ||P(z) − Wz||² = 0.000 — confirming
-that **P is essentially linear**. This empirically validates the LeJEPA
-identifiability condition in a fully controlled ground-truth setting: the
-transition operator is linear, so the residual direction is consistent
-across contexts.
-
-Note: this experiment is **erasure, not encoding**. The low probe accuracy
-is achieved by removing country from h2, not by representing it in a
-geometrically richer way. It answers a different question — can we
-deliberately strip a feature from a layer? — rather than the original
-question of how to encode it more interestingly.
-
-*[Figure: 13_jepa_residual_probe.png — per-feature bar chart of raw h2 vs residual probe accuracy; country is the only feature below chance in h2 and only marginally above chance in the residual.]*
-
----
-
-### Idea 4 — Helical code
-
-**What:** Add a regulariser that pushes a learned 3D projection of h2 onto
-a helix: `country=0` → (cos 0°, sin 0°, 0), `country=1` → (cos 90°,
-sin 90°, pitch). Motivated by transformer positional encodings and
-grid-cell theories of spatial encoding.
-
-**Results:**
-
-| Probe | Accuracy |
-|---|---|
-| 1D projection | 0.989 |
-| 2D angular | 0.993 |
-| 3D helical fit | 0.993 |
-
-**Finding:** The helix collapses to 1D for a binary label. The two classes
-sit at the tips of two separate 1D manifolds rather than on a spiral. This
-is the expected degenerate case: a helix only shows its distinctive
-structure for multi-valued (ordinal or continuous) variables. For a binary
-label, the circular and linear components align and the representation
-reduces to a simple line.
-
-*[Figure: 15_helix_geometry.png — 3D scatter; two separate line segments confirm the 1D collapse.]*
-
----
-
-### Idea 5 — Superposition / entanglement code
-
-**What:** Force `country` and `food` to share a 2D bottleneck with
-interleaved target positions: (c=0,f=0)→(1,0), (c=1,f=0)→(0,1),
-(c=0,f=1)→(−1,0), (c=1,f=1)→(0,−1). Neither feature occupies a
-dedicated dimension.
-
-**Why interesting:** Anthropic's superposition hypothesis predicts that
-models under capacity pressure interleave features into shared directions.
-This experiment is a deliberate, controlled demonstration: the failure mode
-is not mysterious — it is the geometry. This is the only experiment that
-produces a representation that is both geometrically novel relative to the
-baseline and directly relevant to the AI safety question of how neural
-networks store more features than they have dimensions.
-
-**Results:**
-
-| Feature | Bottleneck probe | Base rate |
-|---|---|---|
-| country | 0.978 | 0.503 |
-| food    | 0.738 | 0.501 |
-
-Measuring the actual geometry: the four (country, food) groups
-approximately hit their target angles — (0,0) at 8.7°, (0,1) at 81.2°,
-(1,0) at 175.1°, (1,1) at 273.4° — close to the intended 0°, 90°, 180°,
-270°. But the precision is uneven. Two groups form tight clusters:
-(0,0) at std 22° and (0,1) at std 10°. The (1,1) group is moderately
-spread (std 39.5°). The (c=1,f=0) group collapses into a ray (std 71.9°)
-with a larger mean radius (4.04 vs 1.4–2.1 for the others), which is why
-the scatter plot looks like a cross rather than four clean corners. The
-ray overlap is also why food probes at only 0.738 — the (c=1,f=0) group
-bleeds angularly into adjacent regions. Country still probes at 0.978
-because the country=0 vs country=1 boundary (left half vs right half of
-the circle) remains clear despite the spread.
-
-*[Figure: 17_super_geometry.png — 2D bottleneck scatter; four groups occupy four quadrants, confirming the superposition geometry.]*
-
----
-
-### Idea 6 — MNIST circular code (10-class)
-
-**What:** Train a small CNN on MNIST where digit k is pushed toward angle
-k × 36° in a 2D bottleneck (0°, 36°, 72°, …, 324°). The key observation:
-even digits (0, 2, 4, 6, 8) and odd digits (1, 3, 5, 7, 9) alternate
-perfectly around the circle, so no linear classifier in 2D can separate
-them — it would need five cuts. This is the rotation experiment from
-Idea 2, but with 10 classes instead of 2, which eliminates the binary-label
-collapse problem entirely.
-
-**Why interesting:** This is a direct fix to the failure of Idea 2. The
-rotation experiment showed that SO(2) structure is real and well-formed
-for binary labels — but binary labels are always linearly separable by a
-diagonal hyperplane. Moving to a 10-class dataset with interleaved binary
-structure makes the circular encoding genuinely probe-resistant.
-
-**Results (with unit-norm fix applied to bottleneck):**
-
-| Probe | Accuracy |
-|---|---|
-| 10-class digit accuracy | **0.981** |
-| 10-class linear probe on 2D | 0.982 |
-| Even/odd linear probe on 2D | **0.51** |
-| Even/odd nonlinear probe on 2D | **0.985** |
-| Base rate | 0.508 |
-
-The unit-norm constraint (F.normalize on the 2D bottleneck) forces all class
-representations onto the unit circle, eliminating radius variance. With unequal
-radii the previous version had linear probe 0.624 — the model exploited distance
-from origin as a shortcut. After the fix, even/odd linear probe drops to 0.51
-(essentially chance), while the nonlinear probe (0.985) and digit accuracy (0.981)
-are preserved. The gap between linear and nonlinear probes is now 47 percentage
-points — the largest of any encoding in this study.
-
-*[Figure: 19_mnist_circular_geometry.png — 2D scatter coloured by digit,
-circles=even, triangles=odd; all points on the unit circle.]*
-
----
-
-### Idea 7 — SAE decomposition of h2
-
-**What:** Train a top-k sparse autoencoder (SAE, k=10, d_feats=256) on the 64-dimensional
-h2 activations of the original puzzle model. Then measure how well each sparse feature
-predicts country, individually and jointly.
-
-**Why interesting:** If the country Z/2 encoding is truly nonlinear in h2 space, we expect
-it to spread across multiple sparse features — no single dictionary atom should decode it.
-The SAE gives an overcomplete basis for h2 that surfaces fine-grained structure.
-
-**Results:**
-
-| Decoder | Accuracy |
-|---|---|
-| Single best SAE feature (feat 100) | 0.519 |
-| Second best SAE feature (feat 36) | 0.592 |
-| Top-2 pair, linear probe | 0.707 |
-| Top-2 pair, nonlinear probe | 0.717 |
-| All 256 SAE features, linear | 0.827 |
-| All 256 SAE features, nonlinear | **0.958** |
-
-Country distributes across many SAE features. No single feature reaches above 60%.
-The top-2 pair achieves 0.707 — capturing the two arms of the V-shape (positive
-and negative food projections). All 256 features together recover 0.958 nonlinearly,
-matching the original nonlinear probe (0.966). The representation is genuinely
-distributed and nonlinear in the SAE basis.
-
-*[Figure: 21_sae_country_scatter.png — scatter of top-2 SAE features coloured by
-(country, food); the four (country × food) groups separate into distinct quadrants.]*
-
----
-
-### Analytic result: original encoding is rank-1 bilinear
-
-The puzzle's country encoding can be expressed exactly as a rank-1 bilinear form:
-
-```
-country_score(h2) = (wf · h2)²  =  h2^T (wf ⊗ wf) h2
-```
-
-where wf is the food direction in h2 space. The tensor B = wf ⊗ wf is a 64×64 matrix
-of rank 1 with a single non-zero eigenvalue of exactly 1.0. The quadratic form proj²
-and the absolute value |proj| carry identical information (cosine similarity = 1.0000).
-
-| Decoder | Accuracy |
-|---|---|
-| Raw projection (linear) | 0.498 (chance — Z/2 symmetry confirmed) |
-| \|projection\| (abs-value) | 0.598 |
-| projection² (rank-1 bilinear form) | 0.727 |
-| Cosine similarity \|proj\| vs sqrt(proj²) | 1.000 |
-| Bilinear tensor rank | **1** |
-| Largest eigenvalue | **1.0** |
-
-Note: the probe accuracies here are lower than the mechanism analysis (0.946) because the
-food direction is derived from a logistic regression, which produces a slightly different
-direction than what the original circuit uses. The mathematical claims (rank=1, cos_sim=1.0)
-are exact and hold regardless.
-
----
-
-### Idea 8 — Bilinear text model + CPD analysis
-
-**What:** Train a single bilinear layer — `h2 = (W_L · emb) ⊙ (W_R · emb)` — as the
-entire computation between the frozen sentence-transformer embedding and the 8 output
-logits. This architecture IS its own CPD decomposition by construction:
-
-```
-B[f,i,j] = Σ_r W_head[f,r] W_L[r,i] W_R[r,j]
-```
-
-No separate CPD fitting is needed — the factors L, R, D are the model weights.
-
-**Why interesting:** The original puzzle model's country encoding is rank-1 bilinear.
-A bilinear layer is the natural model class for this computation. If the bilinear model
-learns country differently than the ReLU MLP, that tells us something about what role
-the nonlinearity plays.
-
-**Bilinear XOR (control experiment):** Training HeadBilinearXOR on XOR(sentiment, question)
-shows that a bilinear layer can compute XOR — it uses asymmetric L ≠ R to implement the
-product structure. XOR linear probe at h2 = **0.963** vs ReLU = 0.951 (Δ = +0.013).
-Bilinear makes XOR *more* linearly accessible, not less.
-
-**Bilinear text model results:**
-
-| Feature | Linear probe | Nonlinear probe |
-|---|---|---|
-| number | 0.979 | 0.980 |
-| question | 0.999 | 0.999 |
-| color | 0.977 | 0.977 |
-| food | 0.983 | 0.980 |
-| sentiment | 0.981 | 0.977 |
-| country | **0.993** | 0.992 |
-| person | 0.997 | 0.995 |
-| body_part | 0.979 | 0.981 |
-| Overall accuracy | — | **0.986** |
-
-Every feature, including country, is encoded **linearly** in the bilinear h2.
-Country's linear probe = 0.993 vs 0.471 in the original model. A bilinear layer
-does not produce the Z/2 symmetric representation — it directly implements the
-quadratic form and exposes it linearly. The original model's probe resistance
-for country comes from the ReLU nonlinearities, not from the bilinear structure.
-
-**CPD analysis:** The top-20 components by sigma (||L[:,r]|| × ||R[:,r]|| × ||D[:,r]||)
-show specialization (max |D[f,r]| / Σ|D[:,r]|) around 0.16–0.22 per component,
-meaning no single component is fully dedicated to one feature. Country's top-5
-components all have asymmetry ||L-R||/||L|| ≥ 1.1, consistent with the bilinear
-layer exploiting L ≠ R to represent the quadratic form.
-
-*[Figure: 26_bilinear_cpd_spectrum.png — left: σ spectrum (power law decay);
-right: per-component specialization.]*
-
----
-
-### Idea 9 — Bottleneck superposition (emergent geometry)
-
-**What:** Train a model with a narrow d-dimensional bottleneck and a unit-norm constraint
-(`F.normalize`), forcing all representations onto the d-sphere. Two variants: d=4 (4D sphere)
-and d=2 (unit circle). Unlike Idea 5 (superposition with prescribed positions), no target
-angles are given — the geometry emerges from the training objective alone. Eight per-feature
-MLP decoders (d→16→ReLU→1) ensure high task accuracy regardless of geometry.
-
-**Why interesting:** The original Z/2 encoding emerged because the model had capacity pressure
-(64 dims for 8 features) and the food/country features were semantically aligned in embedding
-space. This experiment recreates both pressures with a harder constraint: d < 8 means
-superposition is mathematically unavoidable. The unit-norm constraint eliminates the magnitude
-channel (used by the original model), so all information must be encoded as angles. This is the
-minimal condition under which emergent nonlinear structure is the model's only viable strategy.
-
-**d=4 results (4 linear directions available for 8 features):**
+# Problem statement
+
+The [original BlueDot Technical AI Safety Puzzle 1 problem
+statement](https://github.com/SamDower/bluedot-tais-puzzle#readme) supplies a
+classifier for short English texts. It predicts eight binary features
+simultaneously; the features are not mutually exclusive, and the supplied model
+achieves more than 95% accuracy on each:
+
+- `number`: contains a digit or written-out number;
+- `question`: is phrased as a question;
+- `color`: contains a color word;
+- `food`: mentions food;
+- `sentiment`: expresses positive rather than negative sentiment;
+- `country`: contains a country name;
+- `person`: contains a person's name; and
+- `body_part`: contains a body-part word.
+
+The model is `sentence-transformers/all-MiniLM-L6-v2`, mean-pooled to a
+384-dimensional sentence embedding, followed by four 64-dimensional ReLU hidden
+layers and an eight-logit multilabel output. The puzzle designates layer `L` as
+the activation after the third ReLU (`hidden 2`, called `h2` below). Seven labels
+are represented linearly at `L`: one direction in activation space describes
+each label. One unknown feature `F` is represented differently.
+
+The required tasks are:
+
+1. **Find `F`:** identify which of the eight features is not represented
+   linearly at `L`.
+2. **Explain the representation:** describe the geometry used to represent `F`
+   at `L` and show the analysis supporting that conclusion.
+3. **Train a stranger representation:** train a model that encodes `F`, or
+   another feature, in a representation more interesting than the supplied
+   model's representation; define and defend "more interesting."
+
+The supplied evidence is `model.pt`, 7,000 training texts, 1,500 held-out test
+texts, and the label ordering in `feature_names.json`. The requested submission
+is one document recording what was tried, what worked, what failed, and what
+structure emerged. This report is self-contained with respect to those
+requirements; the link above identifies the authoritative original wording and
+starter code, also preserved in an [immutable upstream
+snapshot](https://github.com/SamDower/bluedot-tais-puzzle/blob/05d7afcedbb7c2486ad4d87ffa3855cbfcd94806/README.md).
+
+# Summary
+
+The unusual feature is **`country`**. At the specified hidden layer (`h2`), a
+linear probe is at chance (`0.471`) while a nonlinear probe reaches `0.966`.
+The simplest high-performing geometric account is a one-dimensional interval
+code on the model's `food` direction: the sign carries food, while the magnitude
+largely carries country. A raw signed projection predicts country at `0.502`,
+whereas its absolute value and square both reach `0.946`.
+
+For Task 3, I trained a two-dimensional, unit-norm circular bottleneck on MNIST.
+Digit classes occupy successive angles, so even and odd digits alternate around
+the circle. After freezing the architecture, hyperparameters, split, and five
+seeds using validation data only, I evaluated once on the additional 50,000
+QMNIST test examples. The mean even/odd accuracy was `0.537` for a linear probe
+and `0.958` for a nonlinear probe. This is a robust nonlinear advantage, though
+not perfect linear-probe immunity in every seed.
+
+# Task 1: Finding the unusual feature
+
+I cached activations at the sentence embedding, each post-ReLU hidden layer, and
+the logits. For every feature and layer I trained:
+
+- a logistic-regression probe; and
+- a one-hidden-layer MLP probe.
+
+Both probes were fit on the supplied training examples and scored on the supplied
+held-out examples. `country` is the only feature with a large linear/nonlinear
+gap at `h2`.
 
 | Feature | Linear probe | Nonlinear probe | Gap |
-|---|---|---|---|
-| number | 0.5833 | 0.5987 | +0.015 |
-| question | 0.9927 | 0.9927 | +0.000 |
-| color | 0.6793 | 0.7867 | +0.107 |
-| food | 0.8940 | 0.8960 | +0.002 |
-| sentiment | 0.5513 | 0.7593 | +0.208 |
-| country | 0.9373 | 0.9360 | -0.001 |
-| person | 0.4853 | 0.9067 | **+0.421** |
-| body_part | 0.8660 | 0.8660 | +0.000 |
+|:--|--:|--:|--:|
+| **country** | **0.471** | **0.966** | **0.495** |
+| question | 1.000 | 1.000 | 0.000 |
+| food | 0.984 | 0.984 | 0.000 |
+| person | 0.999 | 0.999 | 0.000 |
+| body_part | 0.981 | 0.981 | 0.000 |
+| sentiment | 0.981 | 0.981 | -0.001 |
+| color | 0.973 | 0.972 | -0.001 |
+| number | 0.975 | 0.974 | -0.001 |
 
-**d=2 results (2 linear directions available for 8 features):**
+![Figure 1. Held-out linear and nonlinear probe accuracy at h2. The country linear-probe bar is shown rather than clipped.](../artifacts/results/03_gap.png){width=95%}
 
-| Feature | Linear probe | Nonlinear probe | Gap |
-|---|---|---|---|
-| number | 0.5140 | 0.5360 | +0.022 |
-| question | 0.4820 | 0.5213 | +0.039 |
-| color | 0.5213 | 0.5307 | +0.009 |
-| food | 0.7047 | 0.8933 | +0.189 |
-| sentiment | 0.6080 | 0.7973 | +0.189 |
-| country | 0.6773 | 0.8580 | +0.181 |
-| person | 0.4953 | 0.4920 | -0.003 |
-| body_part | 0.9487 | 0.9480 | -0.001 |
+The layer trace localizes the phenomenon. Country is linearly decodable before
+`h2`, nonlinear only at `h2`, and linearly decodable again at `h3` and the
+logits.
 
-**Angular frequency analysis (d=2):**
+| Tap | Linear | Nonlinear |
+|:--|--:|--:|
+| embedding | 0.993 | 0.991 |
+| h0 | 0.989 | 0.991 |
+| h1 | 0.993 | 0.991 |
+| **h2** | **0.471** | **0.966** |
+| h3 | 0.964 | 0.970 |
+| logits | 0.963 | 0.965 |
 
-For d=2, each point on the unit circle has an angle θ = atan2(b₁, b₀). To measure at which
-angular frequency each feature is encoded, we regress each binary label on [cos(k·θ), sin(k·θ)]
-for k = 1..4 and report R².
+Three checks make a template artifact unlikely. Leave-one-template-out scoring
+gives `0.486` linear versus `0.995` nonlinear; a whitened-PCA control gives
+`0.503` versus `0.971`; and shuffled country labels return to chance. These are
+probe results, not by themselves proof that the model causally uses every
+measured feature [1]. Here the supplied classifier's own country output also
+reaches `0.964`, showing that the information is behaviorally available.
 
-| Feature | k=1 | k=2 | k=3 | k=4 | Peak k |
-|---|---|---|---|---|---|
-| number | 0.002 | 0.001 | 0.004 | 0.004 | k=4 |
-| question | 0.003 | 0.005 | 0.002 | 0.001 | k=2 |
-| color | 0.002 | 0.004 | 0.004 | 0.004 | k=2 |
-| food | 0.228 | 0.318 | 0.085 | 0.078 | k=2 |
-| sentiment | 0.103 | 0.229 | 0.060 | 0.010 | k=2 |
-| country | 0.147 | 0.486 | 0.045 | 0.043 | k=2 |
-| person | 0.001 | 0.002 | 0.001 | 0.001 | k=2 |
-| body_part | 0.665 | 0.021 | 0.108 | 0.016 | k=1 |
+# Task 2: Geometry of country at h2
 
-A peak at k=1 means the feature splits the circle in half (a hemisphere boundary — still
-decodable by a linear probe through the origin). A peak at k=2 or higher means the feature
-alternates more than once around the circle — a genuinely nonlinear code that requires a
-curved decision boundary.
+## A magnitude code on the food direction
 
-**Finding:** The d-sphere bottleneck with unit-norm produces clear emergent structure. In d=4,
-`person` has the largest nonlinear gap of any text-domain experiment (+0.421): near-chance linear probe (0.485)
-but 0.907 nonlinear probe — emergent nonlinear encoding with no prescribed geometry. In d=2,
-`body_part` dominates the unit circle (k=1, R²=0.665), while `country`, `food`, and `sentiment`
-use k=2 angular encoding (alternating twice around the circle). The remaining four features
-are squeezed out of the angular structure entirely, consistent with the capacity limit.
+Let `z` be the standardized `h2` activation and let `w_food` be a logistic
+regression direction fit to predict food on training data. I measured the scalar
+projection
 
-*[Figure: 28_bottleneck_d2_scatter.png — 2×4 scatter on unit circle, one subplot per feature,
-colour = feature value; body_part shows a clean half-arc split (k=1); food/sentiment/country
-show alternating arcs (k=2).]*
+$$p = w_{food}^{T} z.$$
 
-*[Figure: 28_bottleneck_d4_pca_scatter.png — 2×4 scatter after PCA(2) of the 4D bottleneck,
-one subplot per feature; person shows curved crescent structure consistent with the +0.421 gap.]*
+The sign of `p` tracks food. Country changes the magnitude: country-positive
+examples lie nearer zero, while country-negative examples lie farther out on
+either side. The direction's sign is arbitrary; the symmetric magnitude pattern
+is the relevant fact.
 
----
+| Country | Food | Mean held-out projection |
+|:--:|:--:|--:|
+| 0 | 0 | -21.8 |
+| 0 | 1 | +18.9 |
+| 1 | 0 | -5.0 |
+| 1 | 1 | +4.4 |
 
-## Capstone — three *constructive* binary probe-resistant codes (Ideas 10–12)
+![Figure 2. Measured held-out projections, not a synthetic reconstruction. Country changes distance from zero while food changes sign.](../artifacts/results/07_mechanism.png){width=95%}
 
-The nine experiments above left one problem open: every probe-resistant win
-(MNIST, the d=2 bottleneck) either abandoned the binary `country` label for a
-multi-class one or was *emergent* (no prescribed geometry). The capstone asks the
-complementary, constructive question: **can a binary, text-domain feature be
-*made* probe-resistant by imposing a geometry no single hyperplane can cut?** All
-three codes below are **architecturally induced**, not emergent — the geometry is
-imposed by construction. They are the constructive counterpart to Idea 9's
-emergent control, and the honest contribution is the *gap between the two*.
+A one-dimensional decoder isolates the symmetry:
 
-The shared mechanism is the **spreader**: a binary label has no internal variation
-to populate a manifold, so a harmonic readout or a ring target can be satisfied by
-collapsing all `feature=1` samples into one arc/point — linearly separable again.
-Every code below therefore co-trains the other features as a spreader that
-populates the manifold while `country` interleaves/links over it.
+| Input to logistic decoder | Country accuracy |
+|:--|--:|
+| $p$ | 0.502 |
+| $|p|$ | **0.946** |
+| $p^2$ | **0.946** |
 
----
+Country directions fit separately within `food=0` and `food=1` have cosine
+similarity `-0.985`. Thus the country direction reverses when food changes, as
+expected if food supplies sign and country supplies magnitude. I therefore
+summarize the geometry as a **primarily one-dimensional, sign-symmetric interval
+code aligned with the food direction**. The word "primarily" matters: `0.946`
+is strong but not exact, and this analysis does not prove that a single scalar
+accounts for every country-relevant computation.
 
-### Idea 10 — Square wave (constructive, the binary-country attack)
+This resembles the absolute-value computation studied in toy models of
+superposition, where opposite ReLU branches can recover a sign-symmetric
+quantity [2]. It does not establish why this classifier learned the code. In
+particular, eight binary labels in 64 dimensions do not by themselves establish
+capacity pressure, so I make no capacity-causation claim.
 
-**What:** `emb → enc[64→ReLU→64→ReLU] → Linear(64,2) → F.normalize → θ`. The
-`country` logit is *constrained* to the k-th circular harmonic,
-`α·cos(kθ)+β·sin(kθ)+b`; the other 7 features use free MLP heads on the circle and
-act as the spreader. Sweep k = 1..5. k=2 is the XOR-on-a-circle checkerboard that
-no diagonal can cut.
+## What the next layer does, and does not show
 
-**Why interesting:** this is the binary, text-domain analog of the MNIST even/odd
-result — a dose-response over angular frequency that tests whether *imposing* a
-harmonic readout is enough to defeat a linear probe.
+The nonlinear code does **not** persist to the output: country is linearly
+decodable at `h3` (`0.964`) and at the logits (`0.963`). Two `h3` neurons have
+large, opposite input-weight alignment with the food direction. A newly fit
+logistic probe on those two activations scores `0.895`, but that is correlational.
+Using the trained model's actual country-output weights, those two neurons alone
+score only `0.517`. Replacing them with their training means leaves accuracy at
+`0.967`, compared with `0.964` unablated. They carry country-correlated
+information, but they are neither sufficient under the trained readout nor shown
+to be necessary. I therefore do not call them a two-neuron decoder.
 
-**Results (per-k, `country` on the 2-D circle):**
+I also discard an earlier "exact rank-1 bilinear" claim. Squaring one selected
+projection constructs an outer-product matrix of rank one by definition. With
+the separately fit unstandardized direction, that decoder reaches only `0.727`;
+it is a rank-1 quadratic approximation, not an exact account of the classifier.
 
-| k | linear | nonlinear | freq peak | country=1 arcs | overall acc |
-|---|---|---|---|---|---|
-| 1 | 0.503 | 0.539 | k=4 | 12 | 0.710 |
-| **2** | **0.711** | **0.959** | **k=2** | **12** | 0.719 |
-| 3 | 0.961 | 0.967 | k=3 | 5 | 0.683 |
-| 4 | 0.985 | 0.985 | k=3 | 3 | 0.662 |
-| 5 | 0.987 | 0.988 | k=4 | 3 | 0.659 |
+## Complete Tasks 1 and 2 analysis record
 
-**Finding — a non-monotonic dose-response, and an honest partial.** k=2 is the
-sweet spot: the angular-frequency peak lands exactly on the imposed k=2, the
-nonlinear probe reaches 0.959, and there is a real +0.25 linear/nonlinear gap. But
-the linear probe is still **0.711 — it does not beat the baseline's 0.471.** The
-binary label leaks into the k=1 component (a half-circle split a linear probe can
-read), because constraining the *readout* to k=2 does not force the *geometry* to
-be purely k=2. At k=1 `country` collapses to chance on *both* probes (it is not
-encoded at all); at k≥3 the model abandons the fast harmonic and dumps `country`
-into a linearly-trivial cluster (linear 0.96–0.99, arc occupancy collapsing 5→3).
-**Lesson:** imposing a harmonic readout is not sufficient for probe resistance — a
-binary label will take the linearly-cheap escape unless the geometry itself forbids it.
+The headline account above was selected from the following analyses. This table
+includes null results and failed interpretations, not only supporting evidence.
+All probe fits use training data and all reported scores use the supplied 1,500
+example test split unless explicitly marked as cross-validation.
 
-*[Figure: 30_squarewave_curve.png — linear vs nonlinear country probe vs harmonic k;
-the linear curve dips toward chance only near k=1–2 then rises to ~0.99.]*
+| Analysis | Measured result | What it established, or failed to establish |
+|:--|:--|:--|
+| Supplied-model sanity check (`01_sanity.csv`) | Per-feature accuracy ranges from `0.964` (`country`) to `1.000` (`question`). | The fixed classifier performs the advertised multilabel task before its representations are interpreted. |
+| Probe-family comparison (`02_linear.csv`, `03_gap.csv`, `04a_significance.csv`) | At `h2`, logistic country accuracy is `0.471`; the best of logistic regression, linear SVM, and LDA is `0.507`. The MLP reaches `0.966`. All seven other features have a linear/nonlinear gap no larger than `0.003` across the broader probe comparison. | The result is not peculiar to one weak linear estimator. |
+| Template controls (`04b_loto.csv`) | Leave-one-template-out: linear `0.486`, nonlinear `0.995`; mean within-template linear accuracy `0.491`. | Neither memorizing templates nor mixing template families explains the gap. |
+| Placebo, shuffle, sample-size, and PCA controls (`04c_controls.csv`) | Random placebo labels score `0.494` linear / `0.479` nonlinear; shuffled country scores `0.495` nonlinear. From `n=700` to `n=7,000`, nonlinear accuracy stays `0.957`-`0.966` while linear stays `0.467`-`0.518`. Whitening/PCA gives `0.503` / `0.971`. | The nonlinear score is not generic overfitting, a small-sample artifact, or a coordinate-scaling artifact. |
+| Layer trace (`04d_layer_trace.csv`) | Country linear accuracy is `0.993` at the embedding, `0.989` at `h0`, `0.993` at `h1`, `0.471` at `h2`, `0.964` at `h3`, and `0.963` at the logits. | Nonlinearity is localized to `h2`; it is not a property of the label throughout the network. |
+| Decoder capacity (`05_capacity.csv`) | A one-unit ReLU MLP reaches only `0.721`; two units reach `0.950`; widths 3-16 stay `0.950`-`0.965`. | A small piecewise-linear decoder is sufficient, consistent with two opposite branches, but this alone does not identify the trained circuit. |
+| Conditional linear probes (`05_conditional.csv`) | Splitting by `food` raises within-subset country accuracy to `0.949`; splitting by sentiment gives `0.872`; every other split gives `0.506`-`0.616`. | Food is the dominant variable that unmasks a signed country direction. Sentiment is a weaker correlate, not a complete account. |
+| Sign-gating attempt (`05_gating.csv`) | A learned binary sign mask scores `0.534`; the continuous linear baseline scores `0.471`; a nonlinear decoder on the sign mask also scores `0.534`. | Sign alone does not carry country. This rejected a simple two-half-space gating explanation. |
+| Country/food statistics (`06_country_food.csv`) | Label correlation is `-0.005`; country XOR food accuracy is `0.517`; conditional country directions have cosine `-0.985`. | The labels are statistically independent. Their coupling is learned representational entanglement, not a dataset correlation or literal XOR target. |
+| Magnitude mechanism (`07_mechanism.csv`) | Raw food-axis projection: `0.502`; absolute projection: `0.946`; squared projection: `0.946`. | This is the strongest simple geometric account: food supplies sign and country largely supplies distance from zero. |
+| Candidate `h3` circuit (`07b_h3_circuit.csv`) | Two aligned neurons score `0.895` with a newly fit probe, but only `0.517` through the model's own readout. Mean-ablation accuracy is `0.967` versus `0.964` unablated. | The neurons are correlated with country but are neither sufficient under the trained readout nor necessary by this ablation. The proposed two-neuron causal decoder failed. |
+| Rank-1 quadratic approximation (`22_cpd_analytic.csv`) | Raw projection `0.498`, absolute projection `0.598`, squared projection `0.727`; the constructed quadratic matrix has rank 1. | Rank 1 follows from squaring one projection. The lower accuracy rejects the earlier claim that this separately fit direction is an exact model mechanism. |
 
----
+# Task 3: An interleaved circular representation
 
-### Idea 11 — Fourier comb (constructive, superposition showpiece)
+## Construction
 
-**What:** same 2-D circle, but multiplex three features onto distinct harmonics —
-`country→k=2`, `food→k=3`, `sentiment→k=4` — each with its own harmonic readout;
-the remaining five use free MLP heads. One scalar angle is asked to carry three
-independent bits as three orthogonal harmonics.
+A small CNN maps each MNIST image to a two-dimensional bottleneck `b`, normalized
+so that $\lVert b\rVert_2=1$. For digit class $k$, a geometry loss targets angle
 
-**Why interesting:** the linear-probe failure *is* the geometry — multiplexing more
-features than linear directions is the controlled form of superposition. The
-diagnostic is an 8×5 harmonic-confusion matrix `R²(feature | harmonic k)`.
+$$\theta_k = \frac{2\pi k}{10}$$
 
-**Results (multiplexed features):**
+A linear ten-class head predicts the digit [4]. The derived binary feature is parity:
+even digits are classes `0, 2, 4, 6, 8`, and odd digits are `1, 3, 5, 7, 9`.
+They alternate around the unit circle, so parity occupies five disjoint angular
+regions rather than one half-space. Unit normalization is essential because it
+prevents radius from becoming a linear shortcut.
 
-| Feature (target k) | linear | nonlinear |
-|---|---|---|
-| country (k=2) | 0.529 | 0.525 |
-| food (k=3) | 0.937 | 0.939 |
-| sentiment (k=4) | 0.598 | 0.867 |
+## Frozen evaluation protocol
 
-**Harmonic-confusion R² (peak in bold; target k starred):**
+The original exploratory run repeatedly inspected a random split of all 70,000
+MNIST examples. Because that split included canonical MNIST test images, I treat
+all results from it as contaminated and do not report them as held-out evidence.
 
-| Feature | k=1 | k=2* | k=3 | k=4 | k=5 |
-|---|---|---|---|---|---|
-| question | 0.773 | **0.823** | 0.183 | 0.038 | 0.121 |
-| food | 0.639 | **0.735** | 0.699 | 0.073 | 0.027 |
-| sentiment | 0.056 | 0.014 | 0.070 | **0.550** | 0.496 |
-| country | 0.005 | 0.005 | 0.002 | 0.001 | 0.002 |
+The corrected protocol was fixed before the confirmatory audit:
 
-(country target k=2, food target k=3, sentiment target k=4.)
+- canonical MNIST training partition only;
+- stratified 50,000/10,000 train/validation split, split seed `17291`;
+- training seeds `11, 29, 47, 71, 101`;
+- 30 epochs, Adam learning rate `0.001`, batch size `256`;
+- geometry-loss weight `1.0`;
+- fixed epoch count, with no checkpoint or seed selection on audit outcomes; and
+- a single confirmatory evaluation on QMNIST `test50k`, the 50,000 additional
+  reconstructed test digits that do not duplicate the standard MNIST test set
+  [3].
 
-**Finding — one clean multiplex, and a diagnosable failure.** Only **sentiment**
-lands on its target harmonic (peak at k=4, +0.27 gap). **food** leaks to k=2 and
-stays linearly readable (0.937). **country** collapses to chance on both probes —
-it is not encoded at all. The harmonic-confusion matrix shows why: `question`, an
-*unconstrained* feature and the easiest in the dataset, hijacks the k=1/k=2
-harmonics (R² 0.77/0.82), starving `country` and `food` of the low-frequency
-capacity they needed. **Lesson:** superposition on one angle is real but fragile —
-an easy unconstrained feature will commandeer the cheap harmonics, and three bits
-on one scalar is past the d=2 capacity the emergent bottleneck (Idea 9) already
-flagged at ~k=2.
+Training code never loads QMNIST. The audit script refuses to run if its result
+CSV already exists. Its first invocation stopped before predictions or metrics
+because raw QMNIST targets expose eight metadata columns; class-column extraction
+was unit-tested, then the unchanged frozen checkpoints were evaluated once.
+Checkpoint SHA-256 hashes and the event are recorded in the audit artifacts.
 
-*[Figure: 32_harmonic_confusion.png — 8×5 R² heatmap; the target cells (red boxes)
-are bright only for sentiment, and question's k1/k2 row dominates.]*
+## Confirmatory results
 
----
+| Metric on QMNIST test50k | Mean | SD | 95% CI |
+|:--|--:|--:|:--|
+| Direct ten-class head | 0.860 | 0.059 | [0.786, 0.934] |
+| Refit linear ten-class probe | 0.949 | 0.026 | [0.916, 0.981] |
+| Even/odd linear probe | **0.537** | 0.042 | [0.485, 0.590] |
+| Even/odd nonlinear probe | **0.958** | 0.023 | [0.930, 0.986] |
+| Even/odd majority baseline | 0.506 | 0.000 | [0.506, 0.506] |
 
-### Idea 12 — Linked rings (constructive, topological showpiece) — the strongest result
+The intervals summarize variation across five training seeds as
+$\bar{x} \pm t_{0.975,4}s/\sqrt{5}$ with $t_{0.975,4}=2.776$; they are not
+per-example binomial intervals.
 
-**What:** `emb → enc → Linear(64,3)` 3-D bottleneck. A regulariser pushes
-`country=0` onto ring A (unit circle, xy-plane, centre origin) and `country=1` onto
-ring B (unit circle, xz-plane, centre (1,0,0)) so that B threads A (linking number
-1). `food` sets the within-ring angle (the spreader). All 8 features decode through
-per-feature MLP heads; loss = BCE + λ·(distance to target ring), λ=1.0.
+| Seed | Validation digit | Audit digit | Audit parity linear | Audit parity nonlinear |
+|--:|--:|--:|--:|--:|
+| 11 | 0.811 | 0.810 | 0.495 | 0.925 |
+| 29 | 0.798 | 0.795 | 0.510 | 0.965 |
+| 47 | 0.878 | 0.876 | 0.525 | 0.979 |
+| 71 | 0.945 | 0.943 | 0.601 | 0.976 |
+| 101 | 0.881 | 0.877 | 0.555 | 0.945 |
 
-**Why interesting:** the sharpest rebuttal to "binary labels are always linearly
-separable." Two *linked rings* are provably not separable by any hyperplane (any
-plane that puts ring A on one side forces all of ring B onto the same side). If the
-model realises this geometry, a linear probe *must* fail while a nonlinear one
-succeeds — by topology, not by tuning.
+![Figure 3. QMNIST audit geometry for seed 71, selected before audit because it had the highest validation digit accuracy. The title reports five-seed means.](../artifacts/results/19_mnist_circular_geometry.png){width=82%}
 
-**Results (`country` on the 3-D bottleneck):**
+The mean nonlinear-minus-linear parity gap is `0.421`; every seed has a gap of
+at least `0.374`. The nonlinear result is consistently high. The linear result
+is near the majority baseline on average, but seed 71 reaches `0.601`, so the
+defensible claim is **strong and repeatable nonlinear advantage from circular
+interleaving**, not universal chance-level linear probing. Direct-head digit
+accuracy is also seed-sensitive (`0.795` to `0.943`), while a refit linear digit
+probe averages `0.949`; this is a limitation of optimization in the frozen run,
+not something removed after seeing audit data.
 
-| Metric | Value |
-|---|---|
-| linear probe | **0.533** (near chance) |
-| nonlinear probe | **0.940** |
-| linear/nonlinear gap | **+0.41** |
-| net disc-crossings (linking number) | **1** |
-| ring-B arc occupancy | 9 / 12 |
-| overall 8-feature acc | 0.806 |
+## Complete Task 3 experiment record
 
-**Finding — the open problem, answered constructively.** This is the strongest
-result of the capstone and the closest any experiment came to the baseline's
-probe-resistance *with a genuinely weirder geometry*: the linear probe sits at
-0.533 (near chance, vs baseline 0.471) while the nonlinear probe holds 0.940 — a
-+0.41 gap — **and the linking is real**: a numerical disc-crossing count returns
-exactly one net crossing of the `country=1` cloud through ring A's disc. The
-collapse risk did not materialise — even though the nominal spreader (`food`) is
-binary, ring B is populated across 9 of 12 angular bins, because BCE pressure from
-the other features spread `country=1` around the ring. So the true spreader was the
-co-trained features, exactly as the capstone's mechanism predicted. **Lesson:** a
-binary feature *can* be made probe-resistant by construction — but it takes a
-geometry that is topologically non-separable (linked rings), not merely a
-high-frequency readout (Idea 10) or multiplexing (Idea 11).
+The circular MNIST model above was the final confirmatory experiment. For
+completeness, the table below records every preceding and subsequent Task 3
+family, including failures. Except for Idea 6's frozen MNIST/QMNIST protocol,
+Ideas 1-5 and 7-12 belong to architecture search: they repeatedly used the
+supplied test activations, usually with one seed. Their numbers are useful for
+explaining what was tried and what geometry appeared, but they are
+test-contaminated exploratory evidence rather than independent held-out results.
+No run was promoted or omitted because of its test score.
 
-*[Figure: 34_linked_rings_scatter.png — 3-D scatter coloured by country; the two
-unit circles sit in orthogonal planes and interlock, ring B threading ring A's disc once.]*
+| Idea | Construction and artifacts | Main measured result | Verdict and observed structure |
+|--:|:--|:--|:--|
+| 1 | Add `sentiment XOR question` as a ninth text label (`08`, `09`). | Base `0.505`; linear probe `0.951`; MLP probe `0.982`. | **Failed.** The network solved the nonlinear target but made it linearly accessible at `h2`; label-level XOR does not imply XOR geometry internally. |
+| 2 | Force binary country toward two angles in a learned 2-D plane (`10`, `11`). | Mean angles `1.0` and `89.4` degrees; linear `0.989`; angular decoder `0.988`. | **Geometric partial, probe-resistance failure.** The intended rotation appeared, but two clusters are separable by a line. Unequal radii (`6.24` and `3.67`) also supplied a shortcut. |
+| 3 | Predict `h2` from the other seven labels and probe the residual (`12`, `13`). | Country probe: original `h2` `0.471`, residual `0.551`; reported linear unexplained fraction `0.000425`. | **Failed as a new encoding.** This label-conditioned predictor mostly erased country; it did not create a context-dependent country code. It is JEPA-inspired only in predicting a latent target, not a standard masked-latent JEPA. |
+| 4 | Impose a three-dimensional helical target for binary country (`14`, `15`). | Base `0.503`; one-coordinate probe `0.989`; 2-D angular and 3-D probes both `0.993`. | **Failed.** Binary supervision populated a linearly easy part of the nominal helix; one coordinate already decoded the label. A helix needs a genuinely multi-valued phase variable and coverage constraints. |
+| 5 | Prescribe a shared 2-D country/food superposition code (`16`, `17`). | Bottleneck probes: country `0.978`, food `0.738`. Country/food cells had broad and unequal angular spreads. | **Partial geometry, failed probe resistance.** The learned cloud did not retain the intended interleaved four-cell layout, and country became almost perfectly accessible. |
+| 6 | Place ten MNIST classes at successive unit-circle angles; define parity by alternating classes (`18`, `19`). | Frozen QMNIST audit over five seeds: parity linear `0.537 +/- 0.042`; nonlinear `0.958 +/- 0.023`. | **Confirmatory success.** Unit normalization removed radius leakage and ten populated classes created five alternating parity regions. Seed 71 still leaked linearly (`0.601`), so the claim is a robust advantage, not perfect immunity. |
+| 7 | Fit a 256-feature sparse autoencoder to the supplied model's `h2` (`20`, `21`). | Top sparse features alone: `0.519`, `0.592`; top pair linear/nonlinear: `0.707`/`0.717`; all features: `0.827`/`0.958`. | **Diagnostic, not a new encoding.** Country remained distributed across many sparse features; the SAE did not isolate a small country circuit or preserve the original linear-probe resistance. |
+| 8 | Analyze a rank-1 quadratic approximation, then train bilinear XOR and bilinear text models (`22`-`26`). | Approximation: raw `0.498`, absolute `0.598`, square `0.727`. Bilinear XOR: `0.963`/`0.977`; bilinear-text country: `0.993`/`0.992`. | **Failed to produce a stranger hidden code.** The constructed outer product is rank 1 by definition, but is not exact. The bilinear architecture computes the interactions while exposing them linearly. |
+| 9 | Train unit-norm text bottlenecks with dimensions 4 and 2, without target angles (`27`, `28`). | `d=4` person: linear `0.485`, nonlinear `0.907` (gap `0.421`). `d=2` country: `0.677`/`0.858`; its largest angular fit was harmonic `k=2`, $R^2=0.486$. | **Mixed emergent result.** Capacity pressure spontaneously hid `person` in 4-D and put country/food/sentiment into repeated arcs in 2-D, but several other labels were squeezed toward chance and country did not match the baseline's resistance. |
+| 10 | Constrain the country readout on a unit circle to harmonic $k=1,\ldots,5$ (`29`, `30`). | Best nonlinear gap at `k=2`: linear `0.711`, nonlinear `0.959`, overall eight-label accuracy `0.719`. At `k=1`, both probes were near chance; at `k>=3`, linear accuracy was `0.961`-`0.987`. | **Partial.** `k=2` produced repeated arcs but leaked a linearly readable component. At `k=1` country was not encoded; at higher $k$ the representation collapsed to linearly easy clusters. A harmonic readout alone did not enforce harmonic geometry. |
+| 11 | Multiplex country, food, and sentiment onto harmonics `2`, `3`, and `4` of one angle (`31`, `32`). | Country `0.529`/`0.525`; food `0.937`/`0.939`; sentiment `0.598`/`0.867`. | **Failed for country; partial for sentiment.** Country collapsed rather than becoming hidden, food stayed linear, and only sentiment occupied its intended high-frequency mode. Unconstrained question signal dominated cheap harmonics ($R^2=0.773$ at `k=1`, `0.823` at `k=2`). |
+| 12 | Regularize binary country toward two nominally linked rings in 3-D, with food as phase (`33`, `34`). | Country linear `0.533`, nonlinear `0.940`; overall accuracy `0.806`; only `4/12` angular bins substantial; coordinate SDs `[1.106, 0.139, 0.142]`; `topology_verified=False`. | **Probe gap, topology failure.** The cloud was mostly one-dimensional. Binary food supplied only two target phases, and post-hoc point ordering cannot establish a linking number. The earlier claim of verified linked rings is retracted. |
 
----
+The sequence exposes a consistent failure mode. A binary label can satisfy a
+nominally circular, helical, harmonic, or ring-shaped objective by occupying only
+one or two easy regions. Those regions are usually linearly separable, or the
+feature disappears entirely. The confirmatory MNIST construction avoids this by
+using ten supervised classes to populate the full unit circle before deriving a
+binary parity label. The `d=4` bottleneck is the most interesting emergent text
+result, but it hides `person`, not country, and trades away performance on some
+other labels.
 
-### Capstone summary — the constructible-vs-emergent gap
+### Diagnostics from all exploratory geometries
 
-| Code | country linear | country nonlinear | Verdict |
-|---|---|---|---|
-| Square wave (k=2) | 0.711 | 0.959 | Partial — real k=2 code, but k=1 leakage keeps it linearly readable |
-| Fourier comb | 0.529 (country) | 0.525 | Failed for country (collapsed); only sentiment multiplexed cleanly |
-| **Linked rings** | **0.533** | **0.940** | **Success — probe-resistant AND topologically novel (linking number 1)** |
+The plots below are the checked-in diagnostics for every Task 3 family not
+already shown in Figure 3. They are included even when the intended structure
+did not emerge; captions report the failure rather than the training target.
 
-The three constructive codes bracket the answer to the open problem. A harmonic
-*readout* (Idea 10) is not enough — the binary label escapes into k=1. Multiplexing
-(Idea 11) is fragile to capacity and to easy unconstrained features. Only an
-explicitly **non-separable topology** (Idea 12) delivers a binary `country` code
-that is simultaneously near-chance to a linear probe and fully recoverable
-nonlinearly. Set against Idea 9 (where the same k=2 angular structure arose
-*emergently* under capacity pressure), the contribution is the gap itself:
-probe-resistant binary geometry is *constructible* by topology, and a milder
-version of it *emerges* on its own — but the cheap, high-frequency constructions in
-between mostly revert to linear separability.
+::: {.experiment-gallery}
+![Idea 1, XOR. The model solved parity but exposed it to a linear probe at 0.951.](../artifacts/results/09_xor_geometry.png){width=100%}
 
----
+![Idea 2, binary rotation. Two angular clusters formed, but two clusters remain linearly separable.](../artifacts/results/11_rotation_geometry.png){width=100%}
 
-### Task 3 Summary
+![Idea 3, label-conditioned residual. Country accuracy rose only to 0.551 in the residual; this was erasure, not a new code.](../artifacts/results/13_jepa_residual_probe.png){width=100%}
 
-| Encoding | Linear probe | Verdict | Key lesson |
-|---|---|---|---|
-| Baseline (abs-value) | 0.50 | — | Z/2 symmetry, rank-1 bilinear |
-| XOR / parity | 0.95 | Failed — linearised | Depth beats label complexity |
-| Helical | 0.99 | Failed — collapsed to 1D | Helix needs multi-valued labels |
-| Rotational SO(2) | 0.99 | Partial — orthogonal structure achieved | Binary labels always linearly separable |
-| JEPA residual | 0.47 | Informative — erasure not encoding | Explicit erasure strips a feature from a layer |
-| Superposition | 0.98 / 0.74 | Partial — geometrically richer | 2D shared encoding; two features, one space |
-| MNIST circular (10-class) | **0.51** | **Best — genuinely probe-resistant** | Multi-class interleaving + unit-norm constraint |
-| SAE decomposition (h2) | 0.827 (all 256) | Analytical — distributed encoding | Country spreads across many sparse features |
-| Bilinear text model | 0.993 (country) | Informative — ReLU is the source | Bilinear linearises the quadratic form |
-| Bottleneck d=4 (unit-norm) | 0.49 (person) | Emergent — nonlinear by capacity | person: linear=0.49, nonlinear=0.91 (+0.42 gap) |
-| Bottleneck d=2 (unit-norm) | **0.48 (question)** | **Emergent — angular superposition** | body_part k=1; country/food/sentiment k=2 |
-| Square wave k=2 (constructive) | 0.711 (country) | Partial — real k=2 code | Harmonic *readout* leaks to k=1; not sufficient |
-| Fourier comb (constructive) | 0.529 (country) | Partial — only sentiment multiplexed | Easy unconstrained feature hijacks low harmonics |
-| **Linked rings (constructive)** | **0.533 (country)** | **Success — probe-resistant + topological** | Non-separable topology (linking #1); +0.41 gap |
+![Idea 4, helix. The binary target occupied a linearly decodable subset; one coordinate reached 0.989.](../artifacts/results/15_helix_geometry.png){width=100%}
 
-**Where the baseline stands after the capstone.** The original country code sits
-at a linear probe of 0.471 — at chance. For the first nine experiments, nothing
-matched it on its own terms: the superposition and bottleneck models make country
-*more* linearly decodable (0.978 and 0.677), and the only probe-resistant win there
-(MNIST, 0.51) abandoned the country feature and the text model for a 10-class digit
-task. That motivated the capstone, and **Idea 12 (linked rings) closed most of the
-gap**: a constructive binary-country code with linear probe **0.533** (near chance)
-and nonlinear 0.940 — probe-resistant *and* geometrically weirder than `|x|`
-(topologically linked rings, verified linking number 1). The honest caveats remain:
-0.533 is marginally above the baseline's 0.471 rather than below it, and the code is
-*constructed* rather than emergent. The two cheaper constructions confirm why this
-is hard — a harmonic *readout* (square wave, k=2 → linear 0.711) leaks into the k=1
-half-circle split, and multiplexing (Fourier comb) collapses `country` entirely when
-an easy unconstrained feature hijacks the low harmonics. **The finding:** a binary
-feature already encoded at chance is close to a local optimum for probe resistance,
-and the only thing that reliably beats a cleverer two-cluster geometry is a
-genuinely non-separable structure — multi-class interleaving (MNIST) or a linked
-topology (Idea 12). Driving a *binary* country encoding strictly below 0.471 while
-keeping it weird, and getting that geometry to *emerge* rather than be imposed,
-remains open.
+![Idea 5, prescribed superposition. The intended interleaved country/food layout was not retained.](../artifacts/results/17_super_geometry.png){width=100%}
 
----
+![Idea 7, sparse autoencoder. Country information remained distributed rather than concentrating in one sparse feature.](../artifacts/results/21_sae_country_scatter.png){width=100%}
 
-## Feedback
+![Idea 8, bilinear CPD spectrum. Components were diffuse, while country itself became 0.993 linearly decodable.](../artifacts/results/26_bilinear_cpd_spectrum.png){width=100%}
 
-Really enjoyed working through this. The absolute-value encoding discovery
-was a genuine "aha" moment, and I appreciated how open-ended Task 3 was.
+![Idea 9a, two-dimensional bottleneck. Several labels occupy repeated angular regions, while others are squeezed out.](../artifacts/results/28_bottleneck_d2_scatter.png){width=100%}
 
-A few things I found myself unsure about:
+![Idea 9b, four-dimensional bottleneck projected with PCA. Person has the largest nonlinear gap, 0.421.](../artifacts/results/28_bottleneck_d4_pca_scatter.png){width=100%}
 
-Tasks 1 and 2 felt connected to me. I could not figure out which feature
-was encoded without also figuring out how, so the split felt a bit
-artificial. Not sure if that is intentional.
+![Idea 10, square-wave sweep. Only k=2 creates a sizeable probe gap; higher frequencies revert to linear separability.](../artifacts/results/30_squarewave_curve.png){width=100%}
 
-For Task 3 I was not sure what "weirder" meant in practice. I kept
-second-guessing whether my ideas were in the right direction.
+![Idea 11, Fourier comb. Only sentiment lands cleanly on its intended harmonic; country disappears.](../artifacts/results/32_harmonic_confusion.png){width=100%}
 
-I was not sure what the template_id field in the data was for. I explored
-it but never knew if I was chasing a red herring.
+![Idea 12, nominal linked rings. The updated diagnostic shows collapse, so no topology claim is retained.](../artifacts/results/34_linked_rings_scatter.png){width=100%}
+:::
 
-Would have loved even a small hint about why this connects to AI safety.
-I could see the mechanistic interpretability angle but was not confident
-I understood the deeper motivation.
+# Conclusion
 
-These are minor things. Overall it was a well-crafted puzzle and I learned
-a lot from it.
+Tasks 1 and 2 identify a localized nonlinear representation: country is hidden
+from linear readout at `h2` by a sign-symmetric magnitude code tied to the food
+direction, then relinearized at `h3`. The causal evidence does not support a
+specific two-neuron decoder, an exact rank-1 mechanism, or a capacity-based origin
+story.
+
+Task 3 shows a more elaborate binary representation by embedding a ten-class
+variable on a unit circle and reading parity from alternating arcs. On an
+additional QMNIST audit set and across five frozen seeds, nonlinear parity probes
+consistently outperform linear probes by a large margin. The seed variation is
+part of the result: the construction is strongly probe-resistant on average,
+but not perfectly immune to linear leakage.
+
+# Reproducibility
+
+The complete code and checked-in artifacts are in the
+[public submission repository](https://github.com/janmenjayap/bluedot-tais-puzzle/tree/puzzle1-task1-harness),
+a fork of the original puzzle repository. Clone the named analysis branch before
+running any command below:
+
+```bash
+git clone --branch puzzle1-task1-harness https://github.com/janmenjayap/bluedot-tais-puzzle.git
+cd bluedot-tais-puzzle
+./setup.sh
+conda activate bluedot-impact-puzzle-1-py311
+pytest -q
+```
+
+`setup.sh` creates a Python 3.11 Conda environment, installs the version-bounded
+dependencies in `requirements.txt` (including Torch 2.2 and torchvision 0.17),
+and runs `pip check`. It does not alter or checksum the supplied model and text
+data. `pytest -q` verifies activation taps, probe utilities, Task 3 models, and
+the frozen MNIST/QMNIST protocol.
+
+A branch can move. For an immutable citation, the final submitted repository
+should be tagged after this report, its scripts, and its artifacts are committed,
+and the tag should replace the branch name in the clone command. At the time of
+writing the public fork has no release tag; this is a publication step, not a
+claim that an uncommitted working tree is already archived.
+
+## Verify the published evidence
+
+The report can be checked without retraining. The first command verifies the
+code; the next two display the frozen five-seed result and the hashes recorded
+for the exact checkpoints used in the one-time audit:
+
+```bash
+pytest -q
+cat artifacts/results/19_mnist_circular_audit_summary.csv
+cut -d, -f1-2 artifacts/results/19_mnist_circular_audit_seeds.csv
+shasum -a 256 artifacts/results/18_mnist_circular_seed_*.pt
+```
+
+The hashes printed by `shasum` should match the `checkpoint_sha256` column after
+accounting for seed order. Protocol metadata and the pre-outcome loader event are
+in `18_mnist_circular_protocol.json` and
+`19_mnist_circular_audit_record.json`.
+
+The supplied puzzle inputs used here have these SHA-256 hashes:
+
+| Input | SHA-256 |
+|:--|:--|
+| `model.pt` | `4f8f69ed29609974fb9f6d1b00d0516bc2aeb49a5218673197b2916417c11175` |
+| `data/train.jsonl` | `eeda858f7f73a1a8dea6661d5dd225f811717aa3cc5d660267ec2b60da767cce` |
+| `data/test.jsonl` | `4e92dac8ef0658e0cb1be51486a2ce6c647ae2246f712560402f1e8480d6f046` |
+| `feature_names.json` | `d77a0c708d9702d7e20a2ef55b6c090e12d0f9d9192848e41e117d467a26d856` |
+
+The checked-in HTML is self-contained. With Pandoc 3.9, regenerate it from the
+auditable Markdown source and stylesheet as follows:
+
+```bash
+pandoc docs/writeup.md --standalone --toc --embed-resources --mathml \
+   --syntax-highlighting=none --css docs/submission.css --output docs/report.html
+```
+
+## Reproduce Tasks 1 and 2
+
+Run the analyses in dependency order from the repository root. These commands
+rebuild the activation cache and the complete Tasks 1-2 evidence table:
+
+```bash
+for script in \
+   00_cache_activations \
+   01_sanity_check \
+   02_linear_probes \
+   03_nonlinear_probes \
+   04a_significance \
+   04b_template \
+   04c_controls \
+   04d_layer_trace \
+   05_geometry \
+   06_country_food \
+   07_mechanism \
+   07b_h3_circuit
+do
+   python "scripts/${script}.py"
+done
+```
+
+The generated CSVs and figures are `artifacts/results/01_*` through
+`artifacts/results/07b_*`; `artifacts/activations/acts.npz` is the shared cache.
+
+## Independently rerun the confirmatory Task 3 audit
+
+Task 3's frozen training entry point is
+`scripts/18_train_mnist_circular.py`; it loads only the canonical MNIST training
+partition. The audit entry point is
+`scripts/19_analyze_mnist_circular.py`; it loads QMNIST `test50k` and deliberately
+refuses to run while a completed audit CSV exists. In a disposable reproduction
+clone, preserve the published artifacts before invoking the guarded path:
+
+```bash
+mkdir -p artifacts/published-mnist-audit
+mv artifacts/results/18_mnist_circular_* \
+    artifacts/results/19_mnist_circular_* \
+    artifacts/published-mnist-audit/
+python scripts/18_train_mnist_circular.py
+python scripts/19_analyze_mnist_circular.py
+diff -u artifacts/published-mnist-audit/19_mnist_circular_audit_summary.csv \
+            artifacts/results/19_mnist_circular_audit_summary.csv
+```
+
+The frozen split, seeds, epoch count, learning rate, batch size, and geometry
+weight are constants in `src/puzzle/mnist_protocol.py`. Python, Torch,
+torchvision, and device metadata are written into the protocol JSON. Random
+seeds are fixed, but exact checkpoint bytes can remain backend-dependent; the
+published SHA-256 values identify the checkpoints supporting this report.
+
+## Rerun the historical Task 3 archive
+
+For completeness, the remaining Task 3 scripts run in the order below. They
+train multiple models and can take substantially longer than the Tasks 1-2
+analysis. Run them only in a disposable clone because they overwrite historical
+artifacts. Their use of repeatedly inspected test data means rerunning them does
+not convert their results into confirmatory evidence.
+
+```bash
+for script in \
+   08_train_xor 09_analyze_xor \
+   10_train_rotation 11_analyze_rotation \
+   12_train_jepa 13_analyze_jepa \
+   14_train_helix 15_analyze_helix \
+   16_train_superposition 17_analyze_superposition \
+   20_train_sae_h2 21_analyze_sae_h2 \
+   22_cpd_puzzle_analytic \
+   23_train_bilinear_xor 24_analyze_bilinear_xor \
+   25_train_bilinear_text 26_analyze_bilinear_cpd \
+   27_train_bottleneck 28_analyze_bottleneck \
+   29_train_squarewave 30_analyze_squarewave \
+   31_train_fourier_comb 32_analyze_fourier_comb \
+   33_train_linked_rings 34_analyze_linked_rings
+do
+   python "scripts/${script}.py"
+done
+```
+
+The script-to-experiment mapping is the numbered Task 3 ledger above. The
+authoritative evidence classification is also recorded in `scripts/README.md`:
+`18`/`19` are confirmatory, `00`-`07b` analyze the supplied fixed model under its
+intended train/test split, and the other Task 3 runs are historical exploration.
+
+# References
+
+1. Alain, G., and Bengio, Y. (2016, revised 2018). "Understanding intermediate
+   layers using linear classifier probes." arXiv:1610.01644.
+   <https://arxiv.org/abs/1610.01644>
+2. Elhage, N., et al. (2022). "Toy Models of Superposition." Transformer
+   Circuits Thread. <https://transformer-circuits.pub/2022/toy_model/index.html>
+3. Yadav, C., and Bottou, L. (2019). "Cold Case: The Lost MNIST Digits."
+   Advances in Neural Information Processing Systems 32.
+   <https://proceedings.neurips.cc/paper/2019/hash/51c68dc084cb0b8467eafad1330bce66-Abstract.html>
+4. LeCun, Y., Bottou, L., Bengio, Y., and Haffner, P. (1998). "Gradient-Based
+   Learning Applied to Document Recognition." Proceedings of the IEEE, 86(11),
+   2278-2324. <https://doi.org/10.1109/5.726791>

@@ -1,0 +1,252 @@
+:root {
+  --ink: #202124;
+  --muted: #5f6368;
+  --rule: #d6d9dd;
+  --paper: #ffffff;
+  --canvas: #eef1f4;
+  --accent: #9f2d2d;
+  --link: #1558a6;
+  --soft: #f6f8fa;
+}
+
+html {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  font-size: 18px;
+  line-height: 1.58;
+}
+
+body {
+  box-sizing: border-box;
+  max-width: 980px;
+  margin: 32px auto;
+  padding: 64px 76px 80px;
+  background: var(--paper);
+  border-top: 6px solid var(--accent);
+  box-shadow: 0 8px 28px rgb(32 33 36 / 10%);
+}
+
+header {
+  margin-bottom: 3rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h1,
+h2,
+h3 {
+  color: #17181a;
+  font-family: Avenir, "Gill Sans", "Trebuchet MS", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.18;
+}
+
+h1 {
+  margin-top: 2.8rem;
+  font-size: 2.1rem;
+}
+
+header h1 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 2.65rem;
+}
+
+h2 {
+  margin-top: 2.3rem;
+  font-size: 1.45rem;
+}
+
+h3 {
+  margin-top: 1.8rem;
+  font-size: 1.12rem;
+}
+
+.subtitle,
+.author,
+.date {
+  color: var(--muted);
+  font-family: Avenir, "Gill Sans", "Trebuchet MS", sans-serif;
+}
+
+.subtitle {
+  margin-top: 0.5rem;
+  font-size: 1.22rem;
+}
+
+nav#TOC {
+  margin: 2rem 0 3rem;
+  padding: 1.1rem 1.4rem;
+  background: var(--soft);
+  border-left: 3px solid var(--accent);
+}
+
+nav#TOC > ul {
+  columns: 2;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+nav#TOC ul ul {
+  display: none;
+}
+
+a {
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+
+blockquote {
+  margin: 1.4rem 0;
+  padding: 0.2rem 1.2rem;
+  color: #303236;
+  border-left: 3px solid var(--accent);
+}
+
+table {
+  width: 100%;
+  margin: 1.4rem 0 2rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: #35373a;
+  font-family: Avenir, "Gill Sans", "Trebuchet MS", sans-serif;
+  font-size: 0.84rem;
+  text-transform: uppercase;
+}
+
+tr:nth-child(even) td {
+  background: var(--soft);
+}
+
+figure {
+  margin: 2.2rem auto 2.7rem;
+}
+
+figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+figcaption {
+  max-width: 760px;
+  margin: 0.7rem auto 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.experiment-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.8rem 1.4rem;
+  margin: 1.8rem 0 2.8rem;
+}
+
+.experiment-gallery figure {
+  min-width: 0;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+
+.experiment-gallery figure img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+}
+
+.experiment-gallery figcaption {
+  margin-top: 0.55rem;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+code {
+  padding: 0.08rem 0.25rem;
+  background: var(--soft);
+  border-radius: 3px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.86em;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 1rem 1.2rem;
+  background: #202124;
+  color: #f8f9fa;
+  border-radius: 4px;
+}
+
+pre code {
+  padding: 0;
+  background: transparent;
+}
+
+@media (max-width: 760px) {
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    margin: 0;
+    padding: 30px 20px 50px;
+    box-shadow: none;
+  }
+
+  header h1 {
+    font-size: 2.05rem;
+  }
+
+  nav#TOC > ul {
+    columns: 1;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .experiment-gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  html {
+    background: white;
+    font-size: 11pt;
+  }
+
+  body {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  nav#TOC {
+    break-after: page;
+  }
+
+  figure,
+  table {
+    break-inside: avoid;
+  }
+}
