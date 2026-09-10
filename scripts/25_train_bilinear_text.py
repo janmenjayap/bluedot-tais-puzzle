@@ -1,4 +1,6 @@
 # scripts/25_train_bilinear_text.py
+# HISTORICAL EXPLORATION: this script monitored test data during training.
+# Its outputs are not held-out evidence and are excluded from the final result.
 # Train bilinear text model: emb -> (W_L@emb)*(W_R@emb) -> head -> 8 logits.
 # The model is its own CPD decomposition — no separate CPD training needed.
 import sys, os

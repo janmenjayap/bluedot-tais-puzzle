@@ -1,5 +1,8 @@
 # scripts/16_train_superposition.py
-"""Train HeadSuper: 2D bottleneck + superposition regulariser for country+food."""
+"""Historical exploration that monitored test data during training.
+
+Its outputs are not held-out evidence and are excluded from the final result.
+"""
 import numpy as np
 import torch
 import torch.nn.functional as F

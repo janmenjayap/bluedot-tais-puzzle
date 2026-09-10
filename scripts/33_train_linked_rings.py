@@ -1,12 +1,12 @@
 # scripts/33_train_linked_rings.py
-# Experiment γ — linked rings: country=0 → ring A (xy-plane, origin),
-# country=1 → ring B (xz-plane, centre (1,0,0)); food sets within-ring angle.
-# Loss = BCE(all 8) + λ · linked_rings_loss. λ tuned via LAMBDA.
+# Failed linked-rings attempt retained for reproducibility.
+# The binary food phase gives only two target points per nominal ring.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import torch
 import torch.nn.functional as F
+from sklearn.model_selection import train_test_split
 from torch.optim import Adam
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from src.puzzle.models_t3 import HeadLinkedRings
@@ -19,10 +19,16 @@ CI, FI = FEATURE_NAMES.index("country"), FEATURE_NAMES.index("food")
 
 def main():
     data = np.load("artifacts/activations/acts.npz")
-    emb_tr = torch.from_numpy(data["train_emb"]).float()
-    emb_te = torch.from_numpy(data["test_emb"]).float()
-    lab_tr = torch.from_numpy(data["train_labels"]).float()
-    lab_te = torch.from_numpy(data["test_labels"]).float()
+    embeddings = data["train_emb"]
+    labels = data["train_labels"]
+    strata = labels[:, CI] * 2 + labels[:, FI]
+    fit_indices, validation_indices = train_test_split(
+        np.arange(len(labels)), test_size=0.2, random_state=17291, stratify=strata
+    )
+    emb_tr = torch.from_numpy(embeddings[fit_indices]).float()
+    emb_val = torch.from_numpy(embeddings[validation_indices]).float()
+    lab_tr = torch.from_numpy(labels[fit_indices]).float()
+    lab_val = torch.from_numpy(labels[validation_indices]).float()
     os.makedirs("artifacts/results", exist_ok=True)
     torch.manual_seed(0)
     model = HeadLinkedRings()
@@ -43,8 +49,8 @@ def main():
         if (epoch + 1) % 150 == 0:
             model.eval()
             with torch.no_grad():
-                acc = ((model(emb_te) > 0).float() == lab_te).float().mean()
-            print(f"epoch {epoch+1:3d}: acc={acc:.4f}")
+                acc = ((model(emb_val) > 0).float() == lab_val).float().mean()
+            print(f"epoch {epoch+1:3d}: validation_acc={acc:.4f}")
             model.train()
     model.eval()
     torch.save(model.state_dict(), "artifacts/results/33_linked_rings_model.pt")

@@ -1,4 +1,6 @@
 # scripts/27_train_bottleneck.py
+# HISTORICAL EXPLORATION: this script monitored test data during training.
+# Its outputs are not held-out evidence and are excluded from the final result.
 # Train HeadBottleneck on all 8 text features with d=4 and d=2.
 # Architecture: emb(384) → [64→ReLU→64→ReLU→d] → unit_norm → 8×MLP_heads → logits
 # Unit-norm on bottleneck forces all representations onto the d-sphere.

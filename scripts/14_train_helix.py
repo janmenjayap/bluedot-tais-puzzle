@@ -1,5 +1,8 @@
 # scripts/14_train_helix.py
-"""Train HeadHelix with BCE + helical regulariser on country."""
+"""Historical exploration that monitored test data during training.
+
+Its outputs are not held-out evidence and are excluded from the final result.
+"""
 import numpy as np
 import torch
 import torch.nn.functional as F

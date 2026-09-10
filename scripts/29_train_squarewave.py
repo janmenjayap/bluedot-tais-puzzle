@@ -1,4 +1,6 @@
 # scripts/29_train_squarewave.py
+# HISTORICAL EXPLORATION: this script monitored test data during training.
+# Its outputs are not held-out evidence and are excluded from the final result.
 # Experiment A — square wave: country constrained to the k-th harmonic of a 2-D circle.
 # Sweep k=1..5; the other 7 co-trained features are the spreader. BCE on all 8 outputs.
 import sys, os

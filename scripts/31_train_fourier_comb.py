@@ -1,4 +1,6 @@
 # scripts/31_train_fourier_comb.py
+# HISTORICAL EXPLORATION: this script monitored test data during training.
+# Its outputs are not held-out evidence and are excluded from the final result.
 # Experiment α — Fourier comb: multiplex country(k=2), food(k=3), sentiment(k=4)
 # onto one 2-D circle; remaining features use free heads. BCE on all 8 outputs.
 import sys, os

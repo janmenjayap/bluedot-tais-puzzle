@@ -1,5 +1,8 @@
 # scripts/08_train_xor.py
-"""Train 9-head XOR model. 9th output = XOR(sentiment, question)."""
+"""Historical exploration that monitored test data during training.
+
+Its outputs are not held-out evidence and are excluded from the final result.
+"""
 import numpy as np
 import torch
 import torch.nn.functional as F

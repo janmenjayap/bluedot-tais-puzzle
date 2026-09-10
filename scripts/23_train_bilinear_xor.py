@@ -1,4 +1,6 @@
 # scripts/23_train_bilinear_xor.py
+# HISTORICAL EXPLORATION: this script monitored test data during training.
+# Its outputs are not held-out evidence and are excluded from the final result.
 # Train bilinear (no-ReLU) model on XOR task. Compare to ReLU HeadXOR.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -1,5 +1,8 @@
 # scripts/12_train_jepa.py
-"""Train JEPA predictor P: predicts original model's h2 from 7 non-country labels."""
+"""Historical exploration that used test labels during training diagnostics.
+
+Its outputs are not held-out evidence and are excluded from the final result.
+"""
 import numpy as np
 import torch
 import torch.nn.functional as F
