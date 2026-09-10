@@ -1,2 +1,2 @@
-country_linear,country_nonlinear,net_disc_crossings,ringB_arcs,overall_acc
-0.5333333333333333,0.94,1,9,0.8060833333333334
+country_linear,country_nonlinear,topology_verified,substantial_angular_bins_of_12,ringB_nonempty_bins_of_12,coordinate_std_x,coordinate_std_y,coordinate_std_z,overall_acc
+0.5333333333333333,0.94,False,4,9,1.1064005,0.13944884,0.14159748,0.8060833333333334
