@@ -349,14 +349,18 @@ but not perfectly immune to linear leakage.
 
 # Reproducibility
 
-The complete code and checked-in artifacts are in the
-[public submission repository](https://github.com/janmenjayap/bluedot-tais-puzzle/tree/puzzle1-task1-harness),
-a fork of the original puzzle repository. Clone the named analysis branch before
-running any command below:
+The [hosted report](https://bluedot-tais-p1-janmenjayap.web.app/), complete
+code, and checked-in artifacts are in the
+[public submission repository](https://github.com/janmenjayap/bluedot-tais-puzzle/tree/release/puzzle-1-submission),
+a fork of the original puzzle repository. Clone the submission branch, then
+explicitly fetch and fast-forward it before running any command below:
 
 ```bash
-git clone --branch puzzle1-task1-harness https://github.com/janmenjayap/bluedot-tais-puzzle.git
+git clone --branch release/puzzle-1-submission --single-branch \
+   https://github.com/janmenjayap/bluedot-tais-puzzle.git
 cd bluedot-tais-puzzle
+git fetch origin release/puzzle-1-submission
+git merge --ff-only FETCH_HEAD
 ./setup.sh
 conda activate bluedot-impact-puzzle-1-py311
 pytest -q
@@ -368,11 +372,17 @@ and runs `pip check`. It does not alter or checksum the supplied model and text
 data. `pytest -q` verifies activation taps, probe utilities, Task 3 models, and
 the frozen MNIST/QMNIST protocol.
 
-A branch can move. For an immutable citation, the final submitted repository
-should be tagged after this report, its scripts, and its artifacts are committed,
-and the tag should replace the branch name in the clone command. At the time of
-writing the public fork has no release tag; this is a publication step, not a
-claim that an uncommitted working tree is already archived.
+The branch contains the latest documentation. The submitted analysis, scripts,
+and artifacts are also archived in the immutable
+[`v1.0.0` release](https://github.com/janmenjayap/bluedot-tais-puzzle/releases/tag/v1.0.0)
+at commit
+[`341d3d5`](https://github.com/janmenjayap/bluedot-tais-puzzle/commit/341d3d517d13e3fbd74a14922b5c837794e77033).
+To reproduce that exact snapshot after cloning, run:
+
+```bash
+git fetch origin tag v1.0.0
+git switch --detach v1.0.0
+```
 
 ## Verify the published evidence
 

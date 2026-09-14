@@ -1197,11 +1197,16 @@ margin. The seed variation is part of the result: the construction is
 strongly probe-resistant on average, but not perfectly immune to linear
 leakage.</p>
 <h1 id="reproducibility">Reproducibility</h1>
-<p>The complete code and checked-in artifacts are in the <a href="https://github.com/janmenjayap/bluedot-tais-puzzle/tree/puzzle1-task1-harness">public
+<p>The <a href="https://bluedot-tais-p1-janmenjayap.web.app/">hosted
+report</a>, complete code, and checked-in artifacts are in the <a href="https://github.com/janmenjayap/bluedot-tais-puzzle/tree/release/puzzle-1-submission">public
 submission repository</a>, a fork of the original puzzle repository.
-Clone the named analysis branch before running any command below:</p>
-<pre class="bash"><code>git clone --branch puzzle1-task1-harness https://github.com/janmenjayap/bluedot-tais-puzzle.git
+Clone the submission branch, then explicitly fetch and fast-forward it
+before running any command below:</p>
+<pre class="bash"><code>git clone --branch release/puzzle-1-submission --single-branch \
+   https://github.com/janmenjayap/bluedot-tais-puzzle.git
 cd bluedot-tais-puzzle
+git fetch origin release/puzzle-1-submission
+git merge --ff-only FETCH_HEAD
 ./setup.sh
 conda activate bluedot-impact-puzzle-1-py311
 pytest -q</code></pre>
@@ -1212,12 +1217,12 @@ installs the version-bounded dependencies in
 the supplied model and text data. <code>pytest -q</code> verifies
 activation taps, probe utilities, Task 3 models, and the frozen
 MNIST/QMNIST protocol.</p>
-<p>A branch can move. For an immutable citation, the final submitted
-repository should be tagged after this report, its scripts, and its
-artifacts are committed, and the tag should replace the branch name in
-the clone command. At the time of writing the public fork has no release
-tag; this is a publication step, not a claim that an uncommitted working
-tree is already archived.</p>
+<p>The branch contains the latest documentation. The submitted analysis,
+scripts, and artifacts are also archived in the immutable <a href="https://github.com/janmenjayap/bluedot-tais-puzzle/releases/tag/v1.0.0"><code>v1.0.0</code>
+release</a> at commit <a href="https://github.com/janmenjayap/bluedot-tais-puzzle/commit/341d3d517d13e3fbd74a14922b5c837794e77033"><code>341d3d5</code></a>.
+To reproduce that exact snapshot after cloning, run:</p>
+<pre class="bash"><code>git fetch origin tag v1.0.0
+git switch --detach v1.0.0</code></pre>
 <h2 id="verify-the-published-evidence">Verify the published
 evidence</h2>
 <p>The report can be checked without retraining. The first command

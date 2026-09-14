@@ -1,4 +1,25 @@
-# BlueDot Technical AI Safety Puzzle #1
+# BlueDot Technical AI Safety Puzzle #1: Submission
+
+This release branch contains my analysis and reproducibility materials for the
+[original BlueDot puzzle](https://github.com/SamDower/bluedot-tais-puzzle#readme).
+The submission identifies `country` as the nonlinearly represented feature at
+`h2`, explains its sign-symmetric magnitude code on the food direction, and
+constructs an interleaved circular representation for Task 3.
+
+## Submission links
+
+- [Read the hosted report](https://bluedot-tais-p1-janmenjayap.web.app/).
+- [Browse the submission branch](https://github.com/janmenjayap/bluedot-tais-puzzle/tree/release/puzzle-1-submission).
+- [View the auditable Markdown source](docs/writeup.md) or the
+    [self-contained HTML](docs/report.html).
+- [Download the Google Docs submission file](docs/BlueDot_Puzzle_1_Submission.docx).
+- [Browse the result artifacts](artifacts/results/) and the
+    [script evidence classification](scripts/README.md).
+- [Open the immutable `v1.0.0` release](https://github.com/janmenjayap/bluedot-tais-puzzle/releases/tag/v1.0.0)
+    at commit
+    [`341d3d5`](https://github.com/janmenjayap/bluedot-tais-puzzle/commit/341d3d517d13e3fbd74a14922b5c837794e77033).
+
+## Original puzzle
 
 We trained a small classifier on short text inputs to predict eight binary features simultaneously, at over 95% accuracy on each:
 
@@ -57,25 +78,45 @@ The 8 probabilities don't need to sum to 1 because the eight features aren't mut
 - `feature_names.json` — the eight feature names, indexed 0–7.
 
 
-## Setup
+## Reproduce the submission
+
+Clone the release branch, explicitly fetch its latest remote state, and then set
+up the environment:
 
 ```bash
+git clone --branch release/puzzle-1-submission --single-branch \
+    https://github.com/janmenjayap/bluedot-tais-puzzle.git
+cd bluedot-tais-puzzle
+git fetch origin release/puzzle-1-submission
+git merge --ff-only FETCH_HEAD
 ./setup.sh
 conda activate bluedot-impact-puzzle-1-py311
+pytest -q
 ```
 
 The setup uses Python 3.11 with the compatible Torch 2.2 / torchvision 0.17
 pair declared in `requirements.txt`. It excludes user site-packages during
 installation and later activated sessions, and runs `pip check` before reporting
-success.
+success. The complete analysis commands and artifact checks are in the
+[report's reproducibility section](https://bluedot-tais-p1-janmenjayap.web.app/#reproducibility).
+
+For the exact submitted snapshot rather than the moving branch, fetch and detach
+the immutable release before setup:
+
+```bash
+git fetch origin tag v1.0.0
+git switch --detach v1.0.0
+```
 
 ## Submission artifacts
 
-- `docs/BlueDot_Puzzle_1_Submission.docx` is the single document to import into
-    Google Docs. It includes all three measured figures.
-- `docs/report.html` is a self-contained preview of the same source.
-- `scripts/README.md` distinguishes the frozen five-seed Task 3 result from
-    historical, test-contaminated architecture exploration.
+- [`docs/BlueDot_Puzzle_1_Submission.docx`](docs/BlueDot_Puzzle_1_Submission.docx)
+    is the single document to import into Google Docs. It includes all three
+    measured figures.
+- [`docs/report.html`](docs/report.html) is a self-contained rendering of
+    [`docs/writeup.md`](docs/writeup.md).
+- [`scripts/README.md`](scripts/README.md) distinguishes the frozen five-seed
+    Task 3 result from historical, test-contaminated architecture exploration.
 
 ## Code to get you started
 
