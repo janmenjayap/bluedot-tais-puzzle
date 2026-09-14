@@ -1,5 +1,7 @@
 # BlueDot Technical AI Safety Puzzle #1
 
+> **Looking for the detailed solution?** This branch preserves the original, spoiler-free puzzle. Read the [full submission report](https://bluedot-tais-p1-janmenjayap.web.app/) or browse the [`release/puzzle-1-submission` branch](https://github.com/janmenjayap/bluedot-tais-puzzle/tree/release/puzzle-1-submission) for the analysis, experiments, results, and reproducibility instructions.
+
 We trained a small classifier on short text inputs to predict eight binary features simultaneously, at over 95% accuracy on each:
 
 - `number` — contains a digit or written-out number (`3`, `seven`, …)
